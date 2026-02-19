@@ -250,8 +250,8 @@ const StudentTracker = () => {
 
   // STUDENT HOME VIEW WITH TABS
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="flex-1 flex flex-col max-w-sm mx-auto w-full pb-20">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="w-full max-w-sm flex flex-col min-h-screen">
         
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-4 sticky top-0 z-40">
@@ -278,7 +278,7 @@ const StudentTracker = () => {
         )}
 
         {/* Main Content Based on Active Tab */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-20 w-full">
           {!isLive ? (
             <div className="text-center py-12 px-4">
               <p className="text-2xl font-bold text-gray-900 mb-2">🔴 Bus Not Active</p>
@@ -286,7 +286,7 @@ const StudentTracker = () => {
             </div>
           ) : activeTab === 'tracker' ? (
             // TRACKER TAB - Show Map
-            <div className="h-full flex flex-col p-4">
+            <div className="w-full h-full flex flex-col p-4">
               {locationError && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-2">
                   <span className="text-lg">📍</span>
@@ -297,7 +297,7 @@ const StudentTracker = () => {
               )}
               
               {/* Mini Map */}
-              <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 flex-1">
+              <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 flex-1 min-h-0">
                 <MapContainer
                   center={[busLocation.lat, busLocation.lng]}
                   zoom={14}
@@ -342,7 +342,7 @@ const StudentTracker = () => {
             </div>
           ) : activeTab === 'schedule' ? (
             // SCHEDULE TAB - Show Routes with Times
-            <div className="p-4">
+            <div className="w-full h-full p-4">
               <div className="space-y-3">
                 {ROUTE_DATA.map((stop, index) => {
                   const isCurrent = index === currentStopIndex;
@@ -436,7 +436,7 @@ const StudentTracker = () => {
             </div>
           ) : (
             // ALERTS TAB - Empty for now
-            <div className="flex items-center justify-center h-full px-4">
+            <div className="w-full h-full flex items-center justify-center px-4">
               <div className="text-center">
                 <p className="text-5xl mb-3">🔔</p>
                 <p className="text-gray-700 font-bold">No Active Alerts</p>
@@ -448,7 +448,7 @@ const StudentTracker = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[1000] flex items-center justify-around h-16 shadow-2xl max-w-sm mx-auto">
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 bg-white border-t border-gray-200 z-[1000] flex items-center justify-around h-16 shadow-2xl w-full max-w-sm">
         <button
           onClick={() => setActiveTab('tracker')}
           className={`flex flex-col items-center gap-1 transition py-2 flex-1 ${
