@@ -1,10 +1,22 @@
 import { useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Circle, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Circle, Popup, useMap } from 'react-leaflet';
 import { divIcon, type LatLngExpression } from 'leaflet';
 import { useBus } from '../context/useBus';
 import { ROUTE_DATA } from '../context/routeData';
 import { ChevronLeft, RotateCcw, Home, MapPin, User, Plus, Minus, Compass, Search, Calendar, Bell } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+
+// Component to sync map view with bus location
+const MapUpdater = ({ busLocation, isLive }: { busLocation: { lat: number; lng: number }; isLive: boolean }) => {
+  const map = useMap();
+
+  if (isLive) {
+    // Smoothly pan to bus location
+    map.panTo([busLocation.lat, busLocation.lng], { animate: true, duration: 0.5 });
+  }
+
+  return null;
+};
 
 const StudentTracker = () => {
   const { busLocation, isLive, currentStopIndex, locationError } = useBus();
@@ -104,6 +116,9 @@ const StudentTracker = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
+
+          {/* Map View Sync */}
+          <MapUpdater busLocation={busLocation} isLive={isLive} />
 
           {/* Route Lines */}
           {passed.length > 1 && (
