@@ -22,6 +22,8 @@ const StudentTracker = () => {
   const { busLocation, isLive, currentStopIndex, locationError } = useBus();
   const [showFullMap, setShowFullMap] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'tracker' | 'schedule' | 'alerts'>('tracker');
+  const [selectedStopId, setSelectedStopId] = useState<number | null>(null);
 
   // Create custom bus icon
   const busIcon = divIcon({
@@ -86,13 +88,6 @@ const StudentTracker = () => {
   };
 
   const { passed, upcoming } = getRouteSegments();
-
-  const getNextStop = () => {
-    if (!isLive || currentStopIndex >= ROUTE_DATA.length - 1) {
-      return ROUTE_DATA[0];
-    }
-    return ROUTE_DATA[currentStopIndex + 1];
-  };
 
   const getCurrentStop = () => {
     if (currentStopIndex >= ROUTE_DATA.length) {
@@ -253,7 +248,7 @@ const StudentTracker = () => {
     );
   }
 
-  // STUDENT HOME VIEW
+  // STUDENT HOME VIEW WITH TABS
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="flex-1 flex flex-col max-w-sm mx-auto w-full pb-20">
@@ -271,110 +266,221 @@ const StudentTracker = () => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          
+        {/* ETA Display (Always Visible) */}
+        {isLive && (
+          <div className="bg-white border-b border-gray-200 px-4 py-6">
+            <div className="text-center">
+              <p className="text-teal-600 font-bold text-xs uppercase mb-2">ETA</p>
+              <h2 className="text-4xl font-bold text-gray-900 mb-1">{eta} mins</h2>
+              <p className="text-gray-600 text-sm">Approaching {getCurrentStop().name}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Based on Active Tab */}
+        <div className="flex-1 overflow-y-auto">
           {!isLive ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 px-4">
               <p className="text-2xl font-bold text-gray-900 mb-2">🔴 Bus Not Active</p>
               <p className="text-gray-600">Driver hasn't started the trip yet</p>
             </div>
-          ) : (
-            <>
-              {/* Location Status Badge */}
+          ) : activeTab === 'tracker' ? (
+            // TRACKER TAB - Show Map
+            <div className="h-full flex flex-col p-4">
               {locationError && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-2">
                   <span className="text-lg">📍</span>
                   <span className="text-xs text-amber-700">
-                    <span className="font-bold">Simulated Route:</span> {locationError.split('(')[0].trim()}
+                    <span className="font-bold">Simulated Route</span>
                   </span>
                 </div>
               )}
-
-              {/* ETA Card */}
-              <div className="bg-white rounded-3xl p-8 mb-6 shadow-sm border border-gray-200 text-center">
-                <p className="text-teal-600 font-bold text-xs uppercase mb-3">ON TIME</p>
-                <h2 className="text-5xl font-bold text-gray-900 mb-2">{eta}</h2>
-                <p className="text-gray-600 text-lg">Mins</p>
-                <p className="text-gray-600 text-sm mt-2">Approaching {getCurrentStop().name}</p>
-              </div>
-
-              {/* Show Live Map Button */}
-              <button
-                onClick={() => setShowFullMap(true)}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 mb-6"
-              >
-                <MapPin className="w-5 h-5" />
-                Show Live Map
-              </button>
-
-              {/* Route Details */}
-              <div className="mb-6">
-                <p className="text-gray-600 uppercase text-xs font-bold mb-4 px-1">ROUTE DETAILS</p>
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
-                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="font-bold text-blue-600 text-sm">🚌</span>
-                    </div>
-                    <div>
-                      <p className="text-gray-900 font-bold text-sm">Bus #402</p>
-                      <p className="text-gray-500 text-xs">Route 42 - North Campus</p>
-                    </div>
-                  </div>
-
+              
+              {/* Mini Map */}
+              <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 flex-1">
+                <MapContainer
+                  center={[busLocation.lat, busLocation.lng]}
+                  zoom={14}
+                  style={{ height: '100%', width: '100%' }}
+                  zoomControl={false}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; OpenStreetMap'
+                  />
+                  <MapUpdater busLocation={busLocation} isLive={isLive} />
+                  
+                  {/* Bus Marker */}
+                  {isLive && (
+                    <Marker position={[busLocation.lat, busLocation.lng]} icon={busIcon}>
+                      <Popup>
+                        <div className="text-center">
+                          <p className="font-bold">Your Bus</p>
+                          <p className="text-sm">{getCurrentStop().name}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
+                  
                   {/* Stops */}
-                  <div className="space-y-3">
-                    {ROUTE_DATA.slice(0, 3).map((stop, index) => (
-                      <div key={stop.id} className="flex items-start gap-3">
-                        <div className={`w-5 h-5 rounded-full flex-shrink-0 mt-1 ${
-                          index < currentStopIndex 
-                            ? 'bg-red-500' 
-                            : index === currentStopIndex 
-                            ? 'bg-blue-500' 
-                            : 'bg-gray-300'
-                        }`} />
-                        <div className="flex-1">
-                          <p className={`text-sm font-bold ${
-                            index < currentStopIndex 
-                              ? 'text-gray-500' 
+                  {ROUTE_DATA.map((stop, index) => (
+                    <Circle
+                      key={stop.id}
+                      center={[stop.lat, stop.lng]}
+                      radius={80}
+                      pathOptions={{
+                        color: index < currentStopIndex ? '#ef4444' : index === currentStopIndex ? '#f59e0b' : '#10b981',
+                        fillColor: index < currentStopIndex ? '#ef4444' : index === currentStopIndex ? '#f59e0b' : '#10b981',
+                        fillOpacity: 0.7,
+                      }}
+                    >
+                      <Popup>{stop.name}</Popup>
+                    </Circle>
+                  ))}
+                </MapContainer>
+              </div>
+            </div>
+          ) : activeTab === 'schedule' ? (
+            // SCHEDULE TAB - Show Routes with Times
+            <div className="p-4">
+              <div className="space-y-3">
+                {ROUTE_DATA.map((stop, index) => {
+                  const isCurrent = index === currentStopIndex;
+                  const isPassed = index < currentStopIndex;
+                  const isSelected = selectedStopId === stop.id;
+
+                  return (
+                    <button
+                      key={stop.id}
+                      onClick={() => setSelectedStopId(isSelected ? null : stop.id)}
+                      className={`w-full text-left transition-all duration-300 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-500 rounded-2xl shadow-md'
+                          : 'bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm'
+                      } p-4`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-1 flex items-center justify-center font-bold text-white text-xs transition-all ${
+                          isPassed
+                            ? 'bg-red-500'
+                            : isCurrent
+                            ? 'bg-gradient-to-br from-green-400 to-green-600 ring-2 ring-green-300'
+                            : isSelected
+                            ? 'bg-blue-500'
+                            : 'bg-gray-400'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-bold transition-colors ${
+                            isPassed 
+                              ? 'text-gray-400' 
+                              : isCurrent 
+                              ? 'text-green-700 text-lg' 
                               : 'text-gray-900'
                           }`}>
                             {stop.name}
                           </p>
-                          {index === currentStopIndex && (
-                            <p className="text-xs text-blue-600">Current Stop - Arriving Soon</p>
+                          <p className={`text-xs transition-colors ${isPassed ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {stop.time}
+                          </p>
+                        </div>
+                        {isCurrent && (
+                          <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 shadow-md">
+                            NOW
+                          </span>
+                        )}
+                        {!isPassed && !isCurrent && (
+                          <span className="text-gray-400 text-lg flex-shrink-0">→</span>
+                        )}
+                      </div>
+
+                      {/* Selected Stop Info */}
+                      {isSelected && (
+                        <div className="mt-4 pt-4 border-t border-blue-200 space-y-3">
+                          {isCurrent ? (
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 rounded-xl p-4">
+                              <p className="text-green-700 font-bold text-xs uppercase tracking-wide">🎉 Current Stop</p>
+                              <h3 className="text-2xl font-bold text-green-900 mt-2">{stop.name}</h3>
+                              <p className="text-green-700 font-semibold text-sm mt-3 bg-green-100 rounded-lg p-2 text-center">
+                                Your bus has arrived! Get ready! ✓
+                              </p>
+                            </div>
+                          ) : isPassed ? (
+                            <div className="bg-gray-100 rounded-xl p-4 border border-gray-300">
+                              <p className="text-gray-700 font-bold text-xs uppercase">Previous Stop</p>
+                              <h3 className="text-lg font-bold text-gray-900 mt-2">{stop.name}</h3>
+                              <p className="text-gray-600 text-xs mt-2">✓ This stop has been completed</p>
+                            </div>
+                          ) : (
+                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-400 rounded-xl p-4">
+                              <p className="text-blue-700 font-bold text-xs uppercase tracking-wide">📍 Your Stop Ahead</p>
+                              <h3 className="text-2xl font-bold text-blue-900 mt-2">{stop.name}</h3>
+                              <div className="mt-3 space-y-2">
+                                <p className="text-blue-700 font-bold text-sm">
+                                  Ready in <span className="text-2xl text-blue-600">{Math.max(0, eta - Math.ceil((index - currentStopIndex) * 3))}</span> mins
+                                </p>
+                                <p className="text-blue-600 text-xs">Bus arrival time: {stop.time}</p>
+                              </div>
+                              <p className="text-blue-700 text-xs mt-3 bg-blue-100 rounded-lg p-2 text-center font-semibold">
+                                Get ready at your location
+                              </p>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-
-              {/* Next Stop Card */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <p className="text-blue-600 text-xs font-bold uppercase mb-2">Next Stop</p>
-                <h3 className="text-xl font-bold text-blue-900 mb-1">{getNextStop().name}</h3>
-                <p className="text-blue-700 text-sm">Estimated arrival: {getNextStop().time}</p>
+            </div>
+          ) : (
+            // ALERTS TAB - Empty for now
+            <div className="flex items-center justify-center h-full px-4">
+              <div className="text-center">
+                <p className="text-5xl mb-3">🔔</p>
+                <p className="text-gray-700 font-bold">No Active Alerts</p>
+                <p className="text-gray-500 text-sm mt-2">You'll be notified when the bus approaches your stop</p>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[1000] flex items-center justify-around h-16 shadow-2xl">
-        <button className="flex flex-col items-center gap-1 text-blue-500 transition py-2">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[1000] flex items-center justify-around h-16 shadow-2xl max-w-sm mx-auto">
+        <button
+          onClick={() => setActiveTab('tracker')}
+          className={`flex flex-col items-center gap-1 transition py-2 flex-1 ${
+            activeTab === 'tracker'
+              ? 'text-blue-500'
+              : 'text-gray-400 hover:text-blue-500'
+          }`}
+        >
           <MapPin className="w-5 h-5" />
-          <span className="text-xs">Tracker</span>
+          <span className="text-xs font-medium">Tracker</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-blue-500 transition py-2">
+        <button
+          onClick={() => setActiveTab('schedule')}
+          className={`flex flex-col items-center gap-1 transition py-2 flex-1 ${
+            activeTab === 'schedule'
+              ? 'text-blue-500'
+              : 'text-gray-400 hover:text-blue-500'
+          }`}
+        >
           <Calendar className="w-5 h-5" />
-          <span className="text-xs">Schedule</span>
+          <span className="text-xs font-medium">Schedule</span>
         </button>
-        <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-blue-500 transition py-2">
+        <button
+          onClick={() => setActiveTab('alerts')}
+          className={`flex flex-col items-center gap-1 transition py-2 flex-1 ${
+            activeTab === 'alerts'
+              ? 'text-blue-500'
+              : 'text-gray-400 hover:text-blue-500'
+          }`}
+        >
           <Bell className="w-5 h-5" />
-          <span className="text-xs">Alerts</span>
+          <span className="text-xs font-medium">Alerts</span>
         </button>
       </div>
     </div>

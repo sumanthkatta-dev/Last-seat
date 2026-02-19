@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bus, Gauge, X } from 'lucide-react';
+import { Bus, Truck, X, ChevronRight } from 'lucide-react';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -24,92 +24,66 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 flex flex-col items-center justify-center p-4">
-      {/* Header with Logo */}
-      <div className="text-center mb-16 pt-8">
-        <div className="inline-block mb-4">
-          <div className="w-16 h-16 bg-teal-500 rounded-full flex items-center justify-center mx-auto">
-            <Bus className="w-8 h-8 text-white" />
-          </div>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+      {/* Header */}
+      <div className="text-center mb-12 pt-8">
+        <div className="inline-block mb-6 bg-blue-100 rounded-full p-3">
+          <Bus className="w-7 h-7 text-blue-600" />
         </div>
-        <h1 className="text-4xl font-bold text-gray-900">Last Seat</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Welcome to</h1>
+        <h2 className="text-3xl font-bold text-gray-900">Campus Transit</h2>
+        <p className="text-gray-500 text-base mt-2">Select your role to continue</p>
       </div>
 
       {/* Cards Container */}
-      <div className="w-full max-w-sm space-y-6">
-        {/* Student Tracker Card */}
-        <div
+      <div className="w-full max-w-sm space-y-4 mb-12">
+        {/* Student Card */}
+        <button
           onClick={() => navigate('/track')}
-          className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-3xl p-8 cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-teal-200"
+          className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-between"
         >
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">Student Tracker</h2>
-              <p className="text-gray-600 text-sm mt-1">
-                Live bus tracker, routes & ETA in real time
-              </p>
+          <div className="flex items-center gap-4">
+            <div className="text-white">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <Bus className="w-6 h-6 text-white" />
+              </div>
             </div>
-            <span className="inline-block bg-teal-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-              LIVE
-            </span>
-          </div>
-
-          {/* Bus Icon Circle */}
-          <div className="flex justify-center mb-8">
-            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-lg">
-              <Bus className="w-16 h-16 text-teal-500" />
+            <div className="text-left">
+              <h3 className="text-lg font-bold text-white">I am a Student</h3>
+              <p className="text-blue-100 text-sm">Track your bus in real-time</p>
             </div>
           </div>
+          <ChevronRight className="w-6 h-6 text-white flex-shrink-0" />
+        </button>
 
-          {/* Button */}
-          <button className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl">
-            Select Student
-          </button>
-        </div>
-
-        {/* Driver Cockpit Card */}
-        <div
+        {/* Driver Card */}
+        <button
           onClick={handleDriverClick}
-          className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-slate-700 relative overflow-hidden"
+          className="w-full bg-gradient-to-br from-slate-800 to-slate-900 hover:from-slate-900 hover:to-black rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-between"
         >
-          {/* PRO Badge */}
-          <div className="absolute top-4 right-4 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            PRO
-          </div>
-
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-white">Driver Cockpit</h2>
-            <p className="text-gray-300 text-sm mt-1">
-              Broadcast live location & manage shifts
-            </p>
-          </div>
-
-          {/* Cockpit Icon Circle */}
-          <div className="flex justify-center my-8">
-            <div className="w-32 h-32 bg-slate-700 rounded-full flex items-center justify-center shadow-lg">
-              <Gauge className="w-16 h-16 text-amber-400" />
+          <div className="flex items-center gap-4">
+            <div className="text-white">
+              <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+                <Truck className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div className="text-left">
+              <h3 className="text-lg font-bold text-white">I am a Driver</h3>
+              <p className="text-slate-400 text-sm">Start a route and share location</p>
             </div>
           </div>
+          <ChevronRight className="w-6 h-6 text-white flex-shrink-0" />
+        </button>
+      </div>
 
-          {/* Button */}
-          <button className="w-full bg-white hover:bg-gray-100 text-slate-900 font-bold py-4 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl">
-            Select Driver
-          </button>
+      {/* Footer */}
+      <div className="text-center mt-auto pb-8">
+        <p className="text-gray-400 text-sm mb-4">Need assistance?</p>
+        <div className="flex gap-4 justify-center text-sm">
+          <a href="#" className="text-gray-400 hover:text-gray-600 transition">Privacy Policy</a>
+          <span className="text-gray-400">•</span>
+          <a href="#" className="text-gray-400 hover:text-gray-600 transition">Terms of Service</a>
         </div>
-      </div>
-
-      {/* Navigation Dots */}
-      <div className="flex gap-2 mt-12">
-        <div className="w-3 h-3 rounded-full bg-teal-500"></div>
-        <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-        <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-      </div>
-
-      {/* Developer Credits Footer */}
-      <div className="text-center mt-16 mb-4">
-        <p className="text-gray-600 text-sm">
-          Designed & Built by <span className="font-semibold">Sumanth Katta</span>
-        </p>
       </div>
 
       {/* PIN Modal */}
