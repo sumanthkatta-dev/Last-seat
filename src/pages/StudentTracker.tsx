@@ -264,6 +264,16 @@ const StudentTracker = () => {
               <RotateCcw className="w-5 h-5" />
             </button>
           </div>
+          {/* Debug Status */}
+          <div className="mt-2 text-center">
+            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+              isLive 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-gray-200 text-gray-600'
+            }`}>
+              {isLive ? '🟢 Driver Active' : '⚫ Waiting for Driver'}
+            </span>
+          </div>
         </div>
 
         {/* ETA Display (Always Visible) */}
@@ -273,6 +283,12 @@ const StudentTracker = () => {
               <p className="text-teal-600 font-bold text-xs uppercase mb-2">ETA</p>
               <h2 className="text-4xl font-bold text-gray-900 mb-1">{eta} mins</h2>
               <p className="text-gray-600 text-sm">Approaching {getCurrentStop().name}</p>
+            </div>
+            {/* Debug Info */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600">
+              <p>📍 Bus: {busLocation.lat.toFixed(4)}, {busLocation.lng.toFixed(4)}</p>
+              <p>🛑 Current Stop Index: {currentStopIndex}</p>
+              <p>📍 Current Stop: {getCurrentStop().name}</p>
             </div>
           </div>
         )}
