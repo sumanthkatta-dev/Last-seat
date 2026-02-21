@@ -2,23 +2,41 @@
 
 export const requestNotificationPermission = async (): Promise<boolean> => {
   if (!('Notification' in window)) {
-    console.log('This browser does not support notifications');
+    console.log('ℹ️ This browser does not support notifications');
     return false;
   }
 
   if (Notification.permission === 'granted') {
+    console.log('✅ Notifications already enabled');
     return true;
   }
 
   if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        console.log('✅ Notification permission granted');
+        return true;
+      } else {
+        console.log('❌ Notification permission denied by user');
+        return false;
+      }
+    } catch (error) {
+      console.log('⚠️ Notification permission request failed:', error);
+      return false;
+    }
   }
 
+  console.log('❌ Notifications are blocked in browser settings');
   return false;
 };
 
 export const sendNotification = (title: string, options?: NotificationOptions) => {
+  if (!('Notification' in window)) {
+    console.log('Notifications not supported');
+    return;
+  }
+  
   if (Notification.permission === 'granted') {
     try {
       new Notification(title, {
@@ -26,9 +44,12 @@ export const sendNotification = (title: string, options?: NotificationOptions) =
         badge: '/bus-icon.png',
         ...options,
       });
+      console.log('📬 Notification sent:', title);
     } catch (error) {
-      console.error('Error sending notification:', error);
+      console.error('❌ Error sending notification:', error);
     }
+  } else {
+    console.log('⚠️ Cannot send notification - permission not granted');
   }
 };
 

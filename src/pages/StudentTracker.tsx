@@ -51,7 +51,7 @@ const StudentTracker = () => {
   
   // Reset path when journey stops
   useEffect(() => {
-    if (!isLive) {
+    if (!isLive && gpsPathRef.current.length > 0) {
       gpsPathRef.current = [];
       setGpsPath([]);
     }
@@ -64,8 +64,9 @@ const StudentTracker = () => {
       
       // First point
       if (gpsPathRef.current.length === 0) {
-        gpsPathRef.current = [newPoint];
-        setGpsPath([newPoint]);
+        const newPath = [newPoint];
+        gpsPathRef.current = newPath;
+        setGpsPath(newPath);
         return;
       }
       
@@ -195,10 +196,13 @@ const StudentTracker = () => {
           zoom={13}
           style={{ height: '100%', width: '100%' }}
           zoomControl={false}
+          scrollWheelZoom={true}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            maxZoom={19}
+            errorTileUrl="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
           />
 
           {/* Map View Sync */}
@@ -474,12 +478,15 @@ const StudentTracker = () => {
                 <MapContainer
                   center={[busLocation.lat, busLocation.lng]}
                   zoom={15}
-                  style={{ height: '100%', width: '100%' }}
+                  style={{ height: '100%', width: '100%', minHeight: '400px' }}
                   zoomControl={false}
+                  scrollWheelZoom={true}
                 >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; OpenStreetMap'
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    maxZoom={19}
+                    errorTileUrl="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
                   />
                   <MapUpdater busLocation={busLocation} isLive={isLive} autoFollow={autoFollowBus} />
                   
@@ -699,9 +706,31 @@ const StudentTracker = () => {
                   </div>
                   
                   {!notificationsEnabled && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-                      <p className="font-semibold">⚠️ Notifications Disabled</p>
-                      <p className="mt-1">Enable notifications to get real-time alerts when the bus approaches your stop.</p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 space-y-3">
+                      <div>
+                        <p className="font-semibold">⚠️ Notifications Disabled</p>
+                        <p className="mt-1">Enable notifications to get real-time alerts when the bus approaches your stop.</p>
+                      </div>
+                      
+                      {/* Chrome Instructions */}
+                      <div className="bg-amber-100 rounded-lg p-3 space-y-2">
+                        <p className="font-bold text-amber-800">📱 Enable Notifications in Chrome:</p>
+                        <ol className="ml-4 list-decimal space-y-1 text-amber-700">
+                          <li>Click the <strong>lock icon (🔒)</strong> in the address bar</li>
+                          <li>Find "Notifications" and set to <strong>"Allow"</strong></li>
+                          <li>Refresh this page and try again</li>
+                        </ol>
+                      </div>
+                      
+                      {/* Alternative method */}
+                      <div className="bg-amber-100 rounded-lg p-3">
+                        <p className="font-bold text-amber-800 mb-1">Or via Settings:</p>
+                        <p className="text-amber-700">Chrome Settings → Privacy and Security → Site Settings → Notifications → Add this site to "Allowed"</p>
+                      </div>
+                      
+                      <p className="font-semibold text-amber-800 mt-2">
+                        💡 Notifications are optional. The tracker works without them.
+                      </p>
                     </div>
                   )}
                 </div>
