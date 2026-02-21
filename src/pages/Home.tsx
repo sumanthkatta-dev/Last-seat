@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bus, Truck, X, ChevronRight } from 'lucide-react';
+import { useBus } from '../context/useBus';
 
 const Home = () => {
   const navigate = useNavigate();
+  const { setRole } = useBus();
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -16,11 +18,17 @@ const Home = () => {
 
   const handlePinSubmit = () => {
     if (pin === '1234') {
+      setRole('driver'); // 🔥 Set role as driver
       navigate('/driver');
     } else {
       setError('Invalid PIN. Try 1234');
       setPin('');
     }
+  };
+
+  const handleStudentClick = () => {
+    setRole('student'); // 🔥 Set role as student
+    navigate('/track');
   };
 
   return (
@@ -39,7 +47,7 @@ const Home = () => {
       <div className="w-full max-w-sm space-y-4 mb-12">
         {/* Student Card */}
         <button
-          onClick={() => navigate('/track')}
+          onClick={handleStudentClick}
           className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-3xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-between"
         >
           <div className="flex items-center gap-4">

@@ -1,4 +1,6 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
+import { ref, set, onValue, off, type DataSnapshot } from 'firebase/database';
+import { database } from '../config/firebase';
 import { ROUTE_DATA } from './routeData';
 
 interface BusLocation {
@@ -18,9 +20,13 @@ interface BusContextType {
   moveToNextStop: () => void;
   arrivedStops: number[];
   markStopArrived: (stopIndex: number) => void;
+  role: 'driver' | 'student';
+  setRole: (role: 'driver' | 'student') => void;
 }
 
 export const BusContext = createContext<BusContextType | undefined>(undefined);
+
+const BUS_ID = 'bus-42'; // Unique ID for this bus route
 
 export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [busLocation, setBusLocation] = useState<BusLocation>(ROUTE_DATA[0]);
@@ -30,6 +36,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [watchPositionId, setWatchPositionId] = useState<number | null>(null);
   const [isUsingRealLocation, setIsUsingRealLocation] = useState(false);
   const [arrivedStops, setArrivedStops] = useState<number[]>([]);
+  const [role, setRole] = useState<'driver' | 'student'>('student'); // Default to student
 
   // Calculate distance between two points in meters
   const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -81,14 +88,31 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const { latitude, longitude, accuracy } = position.coords;
         console.log('✅ Real GPS location:', latitude, longitude, 'Accuracy:', accuracy, 'm');
         
-        setBusLocation({
+        const newLocation = {
           lat: latitude,
           lng: longitude
-        });
+        };
+        
+        setBusLocation(newLocation);
         
         // Update current stop based on actual location
-        const nearestStopIndex = findNearestStop({ lat: latitude, lng: longitude });
+        const nearestStopIndex = findNearestStop(newLocation);
         setCurrentStopIndex(nearestStopIndex);
+        
+        // 🔥 SYNC TO FIREBASE - Write driver's location to Firebase for students
+        if (role === 'driver') {
+          const busRef = ref(database, `buses/${BUS_ID}`);
+          set(busRef, {
+            location: newLocation,
+            currentStopIndex: nearestStopIndex,
+            isLive: true,
+            isUsingRealLocation: true,
+            timestamp: Date.now(),
+            arrivedStops: arrivedStops
+          }).catch((error: Error) => {
+            console.error('❌ Firebase write error:', error);
+          });
+        }
         
         setLocationError(null);
         setIsUsingRealLocation(true);
@@ -119,7 +143,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ) as unknown as number;
 
     setWatchPositionId(id);
-  }, [findNearestStop]);
+  }, [findNearestStop, role, arrivedStops]);
 
   const stopRealTimeLocation = useCallback((id: number | null) => {
     if (id !== null) {
@@ -185,6 +209,86 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [watchPositionId, stopRealTimeLocation]);
 
+  // 🔥 FIREBASE LISTENER - Students listen for driver's location updates
+  useEffect(() => {
+    if (role === 'student') {
+      console.log('👨‍🎓 Student mode: Listening for driver\'s location from Firebase...');
+      
+      const busRef = ref(database, `buses/${BUS_ID}`);
+      
+      onValue(busRef, (snapshot: DataSnapshot) => {
+        const data = snapshot.val();
+        
+        if (data) {
+          console.log('📡 Received driver location from Firebase:', data);
+          
+          // Update state with driver's real-time location
+          if (data.location) {
+            setBusLocation(data.location);
+          }
+          if (typeof data.currentStopIndex === 'number') {
+            setCurrentStopIndex(data.currentStopIndex);
+          }
+          if (typeof data.isLive === 'boolean') {
+            setIsLive(data.isLive);
+          }
+          if (typeof data.isUsingRealLocation === 'boolean') {
+            setIsUsingRealLocation(data.isUsingRealLocation);
+          }
+          if (Array.isArray(data.arrivedStops)) {
+            setArrivedStops(data.arrivedStops);
+          }
+          
+          setLocationError(null);
+        } else {
+          // No data means driver hasn't started or bus is offline
+          console.log('⚫ No driver data in Firebase - bus not active');
+          setIsLive(false);
+          setIsUsingRealLocation(false);
+        }
+      }, (error: Error) => {
+        console.error('❌ Firebase read error:', error);
+        setLocationError('Unable to connect to server. Please check your internet connection.');
+      });
+      
+      // Cleanup listener on unmount or role change
+      return () => {
+        console.log('🔌 Unsubscribing from Firebase listener');
+        off(busRef);
+      };
+    }
+  }, [role]);
+
+  // Driver: Update Firebase when journey status changes
+  useEffect(() => {
+    if (role === 'driver' && isLive) {
+      const busRef = ref(database, `buses/${BUS_ID}`);
+      set(busRef, {
+        location: busLocation,
+        currentStopIndex,
+        isLive,
+        isUsingRealLocation,
+        timestamp: Date.now(),
+        arrivedStops
+      }).catch((error: Error) => {
+        console.error('❌ Firebase update error:', error);
+      });
+    } else if (role === 'driver' && !isLive) {
+      // Driver stopped - clear Firebase data
+      const busRef = ref(database, `buses/${BUS_ID}`);
+      set(busRef, {
+        location: ROUTE_DATA[0],
+        currentStopIndex: 0,
+        isLive: false,
+        isUsingRealLocation: false,
+        timestamp: Date.now(),
+        arrivedStops: []
+      }).catch((error: Error) => {
+        console.error('❌ Firebase clear error:', error);
+      });
+    }
+  }, [role, isLive, busLocation, currentStopIndex, isUsingRealLocation, arrivedStops]);
+
   return (
     <BusContext.Provider
       value={{
@@ -199,6 +303,8 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         moveToNextStop,
         arrivedStops,
         markStopArrived,
+        role,
+        setRole,
       }}
     >
       {children}

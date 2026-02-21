@@ -1,18 +1,33 @@
 # Last Seat 🚌
 
-A Real-Time GPS College Bus Tracker PWA built with React, TypeScript, and Leaflet.
+A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with React, TypeScript, and Leaflet.
 
 ## Overview
 
-**Last Seat** is a real-time GPS bus tracking application designed for college students and bus drivers. It features two distinct interfaces with **REAL GPS tracking only** - no simulation:
+**Last Seat** is a real-time GPS-synced bus tracking application designed for college students and bus drivers. It uses **Firebase Realtime Database** to sync the driver's GPS location to all students in real-time - no simulation, just real GPS!
 
-- **Student View**: Track the bus location in real-time using actual GPS coordinates
-- **Driver Dashboard**: Share real-time GPS location with students
+- **Student View**: See driver's real-time GPS location on the map
+- **Driver Dashboard**: Broadcast your GPS location to all students
+- **Real-Time Sync**: Firebase ensures instant updates across all devices
+
+## ⚡ Key Feature: Real-Time GPS Sync
+
+The driver's GPS location is **instantly broadcasted** to all students using Firebase Realtime Database:
+
+```
+Driver Device (GPS) → Firebase → Student Devices (Map)
+     🚌 →              ☁️  →         📱📱📱
+```
+
+- Driver gets GPS coordinates from their device
+- Location is written to Firebase in real-time
+- All students receive updates within milliseconds
+- Works across multiple devices simultaneously
 
 ## Features
 
 ### Student Interface (`/track`)
-- 🗺️ **Live GPS Tracking**: Real-time bus location using actual device GPS
+- 🗺️ **Live GPS Tracking**: See driver's real-time GPS location from Firebase
 - 📍 **GPS Path Visualization**: 
   - Red solid line showing actual traveled GPS path
   - Blue dashed line for planned route ahead
@@ -22,16 +37,18 @@ A Real-Time GPS College Bus Tracker PWA built with React, TypeScript, and Leafle
   - Amber for current stop
   - Green for upcoming stops
 - ⏰ **ETA Calculator**: Accurate time based on GPS distance
-- 🔔 **Push Notifications**: Alerts when bus approaches your stop
+- 🔔 **Push Notifications**: Optional alerts when bus approaches your stop
 - 📱 **Three Tab System**:
   - Tracker: Live map with GPS path
   - Schedule: Route stops with status
-  - Alerts: Notification settings
+  - Alerts: Notification settings (optional)
 - 🎯 **6-Decimal Precision**: GPS coordinates accurate to ~0.1 meters
 - 🗺️ **Full Map View**: Expanded map with search and zoom controls
+- 🔄 **Real-Time Updates**: Live sync with driver's location via Firebase
 
 ### Driver Interface (`/driver`)
-- 📡 **GPS-Only Tracking**: Uses real device GPS (no simulation fallback)
+- 📡 **GPS Broadcasting**: Uses real device GPS and syncs to Firebase
+- 🔥 **Firebase Sync**: Writes location to cloud every time GPS updates
 - 🎛️ **One-Touch Control**: Start/stop GPS broadcasting
 - 📍 **Real-Time Status**: Shows GPS coordinates and accuracy
 - ✅ **Stop Management**: Mark stops as arrived and progress through route
@@ -39,11 +56,12 @@ A Real-Time GPS College Bus Tracker PWA built with React, TypeScript, and Leafle
 - 🔄 **High Accuracy Mode**: Forces GPS usage for precise location
 - ⚠️ **Permission Handling**: Clear messages for GPS permission states
 - 🛑 **Manual Stop Control**: Move to next stop with button control
+- ☁️ **Cloud Sync**: All data synced to Firebase for students
 
 ### Landing Page (`/`)
 - 🎨 **Role Selection**: Beautiful split-screen design
 - 👨‍🎓 **Student Card**: Direct access to tracking
-- 🚌 **Driver Card**: PIN-protected dashboard access
+- 🚌 **Driver Card**: PIN-protected dashboard access (PIN: 1234)
 - 🎭 **Modern UI**: Glassmorphic design with gradient backgrounds
 
 ## Tech Stack
@@ -55,6 +73,8 @@ A Real-Time GPS College Bus Tracker PWA built with React, TypeScript, and Leafle
 - **Maps**: React-Leaflet & Leaflet
 - **Icons**: Lucide React
 - **State Management**: React Context API
+- **Backend**: Firebase Realtime Database ⭐
+- **Deployment**: Vercel (with SPA routing)
 
 ## Route Information
 
@@ -72,10 +92,53 @@ A Real-Time GPS College Bus Tracker PWA built with React, TypeScript, and Leafle
 
 ## Installation
 
+### Prerequisites
+
+1. **Node.js** (v18 or higher)
+2. **Firebase Account** - Get one free at [firebase.google.com](https://firebase.google.com)
+
+### Step 1: Clone and Install
+
 ```bash
 # Install dependencies
 npm install
+```
 
+### Step 2: Firebase Setup (Required!)
+
+**The app requires Firebase to sync driver and student locations.**
+
+See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions, or follow these quick steps:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project
+3. Enable **Realtime Database**
+4. Set database rules:
+   ```json
+   {
+     "rules": {
+       "buses": {
+         ".read": true,
+         ".write": true
+       }
+     }
+   }
+   ```
+5. Copy your Firebase config
+6. Create `.env` file:
+   ```env
+   VITE_FIREBASE_API_KEY=your-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+   VITE_FIREBASE_APP_ID=your-app-id
+   ```
+
+### Step 3: Run the App
+
+```bash
 # Start development server
 npm run dev
 

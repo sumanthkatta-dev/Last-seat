@@ -17,6 +17,8 @@ export interface BusContextType {
   moveToNextStop: () => void;
   arrivedStops: number[];
   markStopArrived: (stopIndex: number) => void;
+  role: 'driver' | 'student';
+  setRole: (role: 'driver' | 'student') => void;
 }
 
 export const BusContext = createContext<BusContextType | undefined>(undefined);
