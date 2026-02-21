@@ -1,29 +1,118 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, Popup, useMap } from 'react-leaflet';
 import { divIcon, type LatLngExpression } from 'leaflet';
 import { useBus } from '../context/useBus';
 import { ROUTE_DATA } from '../context/routeData';
-import { ChevronLeft, RotateCcw, Home, MapPin, User, Plus, Minus, Compass, Search, Calendar, Bell } from 'lucide-react';
+import { ChevronLeft, RotateCcw, Home, MapPin, User, Plus, Minus, Compass, Search, Calendar, Bell, BellOff } from 'lucide-react';
+import { requestNotificationPermission, sendBusApproachingNotification, sendJourneyStartNotification } from '../utils/notifications';
 import 'leaflet/dist/leaflet.css';
 
 // Component to sync map view with bus location
-const MapUpdater = ({ busLocation, isLive }: { busLocation: { lat: number; lng: number }; isLive: boolean }) => {
+const MapUpdater = ({ busLocation, isLive, autoFollow }: { 
+  busLocation: { lat: number; lng: number }; 
+  isLive: boolean;
+  autoFollow: boolean;
+}) => {
   const map = useMap();
+  const prevLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  if (isLive) {
-    // Smoothly pan to bus location
-    map.panTo([busLocation.lat, busLocation.lng], { animate: true, duration: 0.5 });
-  }
+  useEffect(() => {
+    if (isLive && autoFollow) {
+      const prevLocation = prevLocationRef.current;
+      const hasLocationChanged = !prevLocation || 
+        Math.abs(prevLocation.lat - busLocation.lat) > 0.0001 ||
+        Math.abs(prevLocation.lng - busLocation.lng) > 0.0001;
+
+      if (hasLocationChanged) {
+        // Smoothly pan to new bus location
+        map.setView([busLocation.lat, busLocation.lng], map.getZoom(), {
+          animate: true,
+          duration: 1
+        });
+        prevLocationRef.current = busLocation;
+      }
+    }
+  }, [busLocation, isLive, autoFollow, map]);
 
   return null;
 };
 
 const StudentTracker = () => {
-  const { busLocation, isLive, currentStopIndex, locationError } = useBus();
+  const { busLocation, isLive, currentStopIndex, locationError, isUsingRealLocation } = useBus();
   const [showFullMap, setShowFullMap] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'tracker' | 'schedule' | 'alerts'>('tracker');
   const [selectedStopId, setSelectedStopId] = useState<number | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const lastNotifiedStopIndexRef = useRef<number>(-1);
+  const [gpsPath, setGpsPath] = useState<LatLngExpression[]>([]);
+  const [autoFollowBus, setAutoFollowBus] = useState(true);
+  const gpsPathRef = useRef<LatLngExpression[]>([]);
+  
+  // Reset path when journey stops
+  useEffect(() => {
+    if (!isLive) {
+      gpsPathRef.current = [];
+      setGpsPath([]);
+    }
+  }, [isLive]);
+
+  // Track GPS path history - syncing with GPS is a valid use case
+  useEffect(() => {
+    if (isLive && isUsingRealLocation) {
+      const newPoint: LatLngExpression = [busLocation.lat, busLocation.lng];
+      
+      // First point
+      if (gpsPathRef.current.length === 0) {
+        gpsPathRef.current = [newPoint];
+        setGpsPath([newPoint]);
+        return;
+      }
+      
+      // Calculate distance from last point
+      const lastPoint = gpsPathRef.current[gpsPathRef.current.length - 1] as [number, number];
+      const distanceFromLast = Math.sqrt(
+        Math.pow(lastPoint[0] - busLocation.lat, 2) + 
+        Math.pow(lastPoint[1] - busLocation.lng, 2)
+      );
+      
+      // Add point if moved more than ~10 meters (0.0001 degrees ≈ 11m)
+      if (distanceFromLast > 0.0001) {
+        const newPath = [...gpsPathRef.current, newPoint];
+        gpsPathRef.current = newPath;
+        setGpsPath(newPath);
+      }
+    }
+  }, [busLocation, isLive, isUsingRealLocation]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    const checkNotifications = async () => {
+      const granted = await requestNotificationPermission();
+      setNotificationsEnabled(granted);
+    };
+    checkNotifications();
+  }, []);
+
+  // Send notification when journey starts
+  useEffect(() => {
+    if (isLive && notificationsEnabled) {
+      sendJourneyStartNotification();
+    }
+  }, [isLive, notificationsEnabled]);
+
+  // Send notification when bus is approaching (2 stops away)
+  useEffect(() => {
+    if (isLive && notificationsEnabled && currentStopIndex > lastNotifiedStopIndexRef.current) {
+      // Notify when bus is close to your stop (you can customize the stop index)
+      const yourStopIndex = 2; // Example: user's stop is index 2
+      
+      if (currentStopIndex === yourStopIndex - 1) {
+        sendBusApproachingNotification(ROUTE_DATA[yourStopIndex].name);
+        lastNotifiedStopIndexRef.current = currentStopIndex;
+      }
+    }
+  }, [isLive, currentStopIndex, notificationsEnabled]);
 
   // Create custom bus icon
   const busIcon = divIcon({
@@ -113,10 +202,22 @@ const StudentTracker = () => {
           />
 
           {/* Map View Sync */}
-          <MapUpdater busLocation={busLocation} isLive={isLive} />
+          <MapUpdater busLocation={busLocation} isLive={isLive} autoFollow={autoFollowBus} />
 
-          {/* Route Lines */}
-          {passed.length > 1 && (
+          {/* Real GPS Path - Traveled Route (Red Line) */}
+          {gpsPath.length > 1 && isUsingRealLocation && (
+            <Polyline
+              positions={gpsPath}
+              color="#ef4444"
+              weight={6}
+              opacity={0.9}
+              lineJoin="round"
+              lineCap="round"
+            />
+          )}
+
+          {/* Planned Route Lines (if not using GPS path) */}
+          {!isUsingRealLocation && passed.length > 1 && (
             <Polyline
               positions={passed}
               color="#d0d0d0"
@@ -129,8 +230,9 @@ const StudentTracker = () => {
             <Polyline
               positions={upcoming}
               color="#3b82f6"
-              weight={5}
-              opacity={0.9}
+              weight={4}
+              opacity={0.5}
+              dashArray="10, 10"
             />
           )}
 
@@ -161,12 +263,15 @@ const StudentTracker = () => {
           })}
 
           {/* Bus Marker */}
-          {isLive && (
+          {isLive && isUsingRealLocation && (
             <Marker position={[busLocation.lat, busLocation.lng]} icon={busIcon}>
               <Popup>
                 <div className="text-center">
-                  <p className="font-bold">Bus Location</p>
+                  <p className="font-bold">🚌 Bus (Live GPS)</p>
                   <p className="text-sm">Route 42</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {busLocation.lat.toFixed(6)}, {busLocation.lng.toFixed(6)}
+                  </p>
                 </div>
               </Popup>
             </Marker>
@@ -179,19 +284,33 @@ const StudentTracker = () => {
             <div className="flex items-center justify-between mb-2">
               <button
                 onClick={() => setShowFullMap(false)}
-                className="bg-white text-gray-700 p-2 rounded-full"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-full transition"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="text-center flex-1">
-                <p className="text-xs font-bold text-orange-600 uppercase">Route 42</p>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <p className="text-xs font-bold text-orange-600 uppercase">Route 42</p>
+                  {isUsingRealLocation && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
+                      📡 LIVE GPS
+                    </span>
+                  )}
+                </div>
                 <p className="text-lg font-bold text-gray-900">{eta} Mins Away</p>
               </div>
-              <button className="bg-blue-100 text-blue-600 p-2 rounded-full">
-                <RotateCcw className="w-5 h-5" />
+              <button 
+                onClick={() => setAutoFollowBus(!autoFollowBus)}
+                className={`p-2 rounded-full transition ${
+                  autoFollowBus 
+                    ? 'bg-blue-100 text-blue-600' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                <Compass className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-600 text-center">2HU1 Main Gate</p>
+            <p className="text-sm text-gray-600 text-center">{getCurrentStop().name}</p>
           </div>
         </div>
 
@@ -219,9 +338,17 @@ const StudentTracker = () => {
           </button>
         </div>
 
-        {/* Location Button */}
+        {/* Location Follow Button */}
         <div className="absolute right-4 bottom-24 z-[1000]">
-          <button className="bg-blue-500 hover:bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg">
+          <button 
+            onClick={() => setAutoFollowBus(!autoFollowBus)}
+            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition ${
+              autoFollowBus 
+                ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                : 'bg-white hover:bg-gray-100 text-gray-700'
+            }`}
+            title={autoFollowBus ? 'Auto-follow ON' : 'Auto-follow OFF'}
+          >
             <Compass className="w-5 h-5" />
           </button>
         </div>
@@ -286,9 +413,18 @@ const StudentTracker = () => {
             </div>
             {/* Debug Info */}
             <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600">
-              <p>📍 Bus: {busLocation.lat.toFixed(4)}, {busLocation.lng.toFixed(4)}</p>
-              <p>🛑 Current Stop Index: {currentStopIndex}</p>
-              <p>📍 Current Stop: {getCurrentStop().name}</p>
+              <p className="font-semibold text-gray-700 mb-1">📡 Real-Time GPS Data:</p>
+              <p>📍 Bus GPS: {busLocation.lat.toFixed(6)}, {busLocation.lng.toFixed(6)}</p>
+              <p>🛑 Current Stop: {getCurrentStop().name} (#{currentStopIndex + 1})</p>
+              <p>✅ GPS Status: {isUsingRealLocation ? 'Active' : 'Waiting...'}</p>
+              <p>🛤️ GPS Path Points: {gpsPath.length}</p>
+              <button
+                onClick={() => setShowFullMap(true)}
+                className="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+              >
+                <MapPin className="w-4 h-4" />
+                View Full Map
+              </button>
             </div>
           </div>
         )}
@@ -297,26 +433,47 @@ const StudentTracker = () => {
         <div className="flex-1 overflow-y-auto pb-20 w-full">
           {!isLive ? (
             <div className="text-center py-12 px-4">
-              <p className="text-2xl font-bold text-gray-900 mb-2">🔴 Bus Not Active</p>
-              <p className="text-gray-600">Driver hasn't started the trip yet</p>
+              <p className="text-5xl mb-4">📡</p>
+              <p className="text-2xl font-bold text-gray-900 mb-2">⚫ Bus Not Active</p>
+              <p className="text-gray-600 mb-2">Driver hasn't started GPS tracking yet</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4 text-left">
+                <p className="text-xs text-blue-700">
+                  <span className="font-bold">ℹ️ Note:</span> This app uses real GPS tracking only. 
+                  When the driver starts the journey, you'll see their live location on the map.
+                </p>
+              </div>
             </div>
           ) : activeTab === 'tracker' ? (
             // TRACKER TAB - Show Map
             <div className="w-full h-full flex flex-col p-4">
-              {locationError && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-2">
-                  <span className="text-lg">📍</span>
-                  <span className="text-xs text-amber-700">
-                    <span className="font-bold">Simulated Route</span>
+              {/* Location Status Banner */}
+              <div className={`rounded-lg p-3 mb-4 flex items-center gap-2 border ${
+                isUsingRealLocation 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <span className="text-lg">
+                  {isUsingRealLocation ? '📡' : '❌'}
+                </span>
+                <div className="flex-1">
+                  <span className={`text-xs font-bold ${
+                    isUsingRealLocation ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {isUsingRealLocation 
+                      ? '✅ Real GPS Broadcasting' 
+                      : '❌ GPS Not Active'}
                   </span>
+                  {locationError && (
+                    <p className="text-xs text-red-600 mt-0.5">Driver's GPS is unavailable</p>
+                  )}
                 </div>
-              )}
+              </div>
               
               {/* Mini Map */}
-              <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 flex-1 min-h-0">
+              <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 flex-1 min-h-0 relative">
                 <MapContainer
                   center={[busLocation.lat, busLocation.lng]}
-                  zoom={14}
+                  zoom={15}
                   style={{ height: '100%', width: '100%' }}
                   zoomControl={false}
                 >
@@ -324,15 +481,41 @@ const StudentTracker = () => {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap'
                   />
-                  <MapUpdater busLocation={busLocation} isLive={isLive} />
+                  <MapUpdater busLocation={busLocation} isLive={isLive} autoFollow={autoFollowBus} />
+                  
+                  {/* Real GPS Path - Red line showing traveled route */}
+                  {gpsPath.length > 1 && isUsingRealLocation && (
+                    <Polyline
+                      positions={gpsPath}
+                      color="#ef4444"
+                      weight={5}
+                      opacity={0.9}
+                      lineJoin="round"
+                      lineCap="round"
+                    />
+                  )}
+                  
+                  {/* Planned Route (Dashed blue line) */}
+                  {upcoming.length > 1 && (
+                    <Polyline
+                      positions={upcoming}
+                      color="#3b82f6"
+                      weight={3}
+                      opacity={0.4}
+                      dashArray="8, 8"
+                    />
+                  )}
                   
                   {/* Bus Marker */}
-                  {isLive && (
+                  {isLive && isUsingRealLocation && (
                     <Marker position={[busLocation.lat, busLocation.lng]} icon={busIcon}>
                       <Popup>
                         <div className="text-center">
-                          <p className="font-bold">Your Bus</p>
+                          <p className="font-bold">🚌 Your Bus (Live GPS)</p>
                           <p className="text-sm">{getCurrentStop().name}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {busLocation.lat.toFixed(6)}, {busLocation.lng.toFixed(6)}
+                          </p>
                         </div>
                       </Popup>
                     </Marker>
@@ -343,17 +526,47 @@ const StudentTracker = () => {
                     <Circle
                       key={stop.id}
                       center={[stop.lat, stop.lng]}
-                      radius={80}
+                      radius={60}
                       pathOptions={{
                         color: index < currentStopIndex ? '#ef4444' : index === currentStopIndex ? '#f59e0b' : '#10b981',
                         fillColor: index < currentStopIndex ? '#ef4444' : index === currentStopIndex ? '#f59e0b' : '#10b981',
                         fillOpacity: 0.7,
                       }}
                     >
-                      <Popup>{stop.name}</Popup>
+                      <Popup>
+                        <div className="text-center">
+                          <p className="font-bold text-sm">{stop.name}</p>
+                          <p className="text-xs text-gray-600">{stop.time}</p>
+                        </div>
+                      </Popup>
                     </Circle>
                   ))}
                 </MapContainer>
+                
+                {/* Map Legend */}
+                <div className="absolute bottom-2 left-2 bg-white rounded-lg p-2 shadow-md text-xs z-[1000]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-4 h-1 bg-red-500 rounded"></div>
+                    <span className="text-gray-700">GPS Path</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-1 bg-blue-400 rounded" style={{backgroundImage: 'repeating-linear-gradient(90deg, #3b82f6 0, #3b82f6 4px, transparent 4px, transparent 8px)'}}></div>
+                    <span className="text-gray-700">Planned</span>
+                  </div>
+                </div>
+                
+                {/* Auto-follow Toggle */}
+                <button 
+                  onClick={() => setAutoFollowBus(!autoFollowBus)}
+                  className={`absolute bottom-2 right-2 p-2 rounded-lg shadow-md transition z-[1000] ${
+                    autoFollowBus 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-white text-gray-700'
+                  }`}
+                  title={autoFollowBus ? 'Auto-follow ON' : 'Auto-follow OFF'}
+                >
+                  <Compass className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ) : activeTab === 'schedule' ? (
@@ -451,12 +664,99 @@ const StudentTracker = () => {
               </div>
             </div>
           ) : (
-            // ALERTS TAB - Empty for now
-            <div className="w-full h-full flex items-center justify-center px-4">
-              <div className="text-center">
-                <p className="text-5xl mb-3">🔔</p>
-                <p className="text-gray-700 font-bold">No Active Alerts</p>
-                <p className="text-gray-500 text-sm mt-2">You'll be notified when the bus approaches your stop</p>
+            // ALERTS TAB - Notification Settings
+            <div className="w-full h-full p-4">
+              <div className="space-y-4">
+                {/* Notification Toggle */}
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      {notificationsEnabled ? (
+                        <Bell className="w-6 h-6 text-blue-500" />
+                      ) : (
+                        <BellOff className="w-6 h-6 text-gray-400" />
+                      )}
+                      <div>
+                        <p className="font-bold text-gray-900">Push Notifications</p>
+                        <p className="text-xs text-gray-500">Get alerts when bus is near</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const granted = await requestNotificationPermission();
+                        setNotificationsEnabled(granted);
+                      }}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${
+                        notificationsEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                          notificationsEnabled ? 'translate-x-7' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  
+                  {!notificationsEnabled && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                      <p className="font-semibold">⚠️ Notifications Disabled</p>
+                      <p className="mt-1">Enable notifications to get real-time alerts when the bus approaches your stop.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Alerts */}
+                {isLive && notificationsEnabled ? (
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border-2 border-blue-200">
+                    <div className="flex items-start gap-3 mb-4">
+                      <Bell className="w-6 h-6 text-blue-600 mt-1" />
+                      <div>
+                        <p className="font-bold text-blue-900">Active Monitoring</p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          We'll notify you when the bus is approaching your stop.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-4 border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-2">Current Status</p>
+                      <p className="font-bold text-gray-900">Bus at: {getCurrentStop().name}</p>
+                      <p className="text-sm text-gray-600 mt-1">Stop {currentStopIndex + 1} of {ROUTE_DATA.length}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-5xl mb-3">🔔</p>
+                    <p className="text-gray-700 font-bold">No Active Alerts</p>
+                    <p className="text-gray-500 text-sm mt-2">
+                      {!isLive 
+                        ? "Waiting for bus to start journey" 
+                        : "Enable notifications to receive alerts"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Notification History */}
+                {notificationsEnabled && (
+                  <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                    <p className="font-bold text-gray-900 mb-3">Notification Settings</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">Bus approaching alert</span>
+                        <span className="text-xs text-green-600 font-semibold">✓ Active</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">Journey start/end</span>
+                        <span className="text-xs text-green-600 font-semibold">✓ Active</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-sm text-gray-700">Route delays</span>
+                        <span className="text-xs text-gray-400">Coming soon</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

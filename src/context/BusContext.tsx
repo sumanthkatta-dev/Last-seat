@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { ROUTE_DATA } from './routeData';
 
 interface BusLocation {
@@ -14,6 +14,10 @@ interface BusContextType {
   stopJourney: () => void;
   setBusLocation: (location: BusLocation) => void;
   locationError: string | null;
+  isUsingRealLocation: boolean;
+  moveToNextStop: () => void;
+  arrivedStops: number[];
+  markStopArrived: (stopIndex: number) => void;
 }
 
 export const BusContext = createContext<BusContextType | undefined>(undefined);
@@ -22,123 +26,164 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [busLocation, setBusLocation] = useState<BusLocation>(ROUTE_DATA[0]);
   const [isLive, setIsLive] = useState(false);
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
-  const [intervalId, setIntervalId] = useState<ReturnType<typeof setInterval> | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [watchPositionId, setWatchPositionId] = useState<number | null>(null);
+  const [isUsingRealLocation, setIsUsingRealLocation] = useState(false);
+  const [arrivedStops, setArrivedStops] = useState<number[]>([]);
 
-  // Real Device Location Tracking
-  const startRealTimeLocation = () => {
+  // Calculate distance between two points in meters
+  const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  }, []);
+
+  // Find nearest stop based on location
+  const findNearestStop = useCallback((location: BusLocation): number => {
+    let nearestIndex = 0;
+    let minDistance = Infinity;
+
+    ROUTE_DATA.forEach((stop, index) => {
+      const distance = calculateDistance(location.lat, location.lng, stop.lat, stop.lng);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestIndex = index;
+      }
+    });
+
+    return nearestIndex;
+  }, [calculateDistance]);
+
+  // Real Device Location Tracking (GPS ONLY - NO SIMULATION)
+  const startRealTimeLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported on this device');
-      startSimulationEngine();
+      setLocationError('❌ GPS not supported. Real-time tracking requires a device with GPS.');
+      setIsUsingRealLocation(false);
+      setIsLive(false);
       return;
     }
+
+    console.log('🌍 Starting REAL GPS location tracking...');
+    setLocationError(null);
 
     // Request permission and start watching position
     const id = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log('✅ Real GPS location:', latitude, longitude, 'Accuracy:', accuracy, 'm');
+        
         setBusLocation({
           lat: latitude,
           lng: longitude
         });
+        
+        // Update current stop based on actual location
+        const nearestStopIndex = findNearestStop({ lat: latitude, lng: longitude });
+        setCurrentStopIndex(nearestStopIndex);
+        
         setLocationError(null);
+        setIsUsingRealLocation(true);
+        setIsLive(true);
       },
       (error) => {
-        console.error('Geolocation error:', error);
+        console.error('❌ GPS error:', error);
         
-        // User denied permission or temporarily blocked
+        // Show error and stop journey - NO SIMULATION FALLBACK
         if (error.code === 1) {
-          setLocationError('Location permission denied. Using simulated route instead.');
+          setLocationError('❌ Location permission denied. Please allow location access to track the bus.');
         } else if (error.code === 2) {
-          setLocationError('Unable to retrieve location. Using simulated route instead.');
+          setLocationError('❌ Unable to get GPS signal. Please ensure GPS is enabled and try again.');
         } else if (error.code === 3) {
-          setLocationError('Location request timeout. Using simulated route instead.');
+          setLocationError('❌ GPS timeout. Please check your GPS signal and try again.');
         } else {
-          setLocationError('Location access unavailable. Using simulated route instead.');
+          setLocationError('❌ GPS unavailable. Real-time tracking requires GPS access.');
         }
         
-        // Fallback to simulation if real location not available
-        startSimulationEngine();
+        setIsUsingRealLocation(false);
+        setIsLive(false);
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        enableHighAccuracy: true, // Force GPS (not network location)
+        timeout: 15000,
+        maximumAge: 0 // Always get fresh location
       }
     ) as unknown as number;
 
     setWatchPositionId(id);
-  };
+  }, [findNearestStop]);
 
-  const stopRealTimeLocation = (id: number | null) => {
+  const stopRealTimeLocation = useCallback((id: number | null) => {
     if (id !== null) {
+      console.log('🛑 Stopping real-time location tracking');
       navigator.geolocation.clearWatch(id);
     }
-  };
+  }, []);
 
-  // Simulation Engine as Fallback
-  const startSimulationEngine = () => {
-    const id = setInterval(() => {
-      setCurrentStopIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        
-        if (nextIndex >= ROUTE_DATA.length) {
-          clearInterval(id);
-          setIsLive(false);
-          return prevIndex;
-        }
-
+  // Move to next stop (for driver manual control)
+  const moveToNextStop = useCallback(() => {
+    setCurrentStopIndex((prevIndex) => {
+      const nextIndex = prevIndex + 1;
+      if (nextIndex < ROUTE_DATA.length) {
         setBusLocation({
           lat: ROUTE_DATA[nextIndex].lat,
           lng: ROUTE_DATA[nextIndex].lng
         });
+        console.log(`🚌 Manually moved to stop ${nextIndex}: ${ROUTE_DATA[nextIndex].name}`);
+      }
+      return Math.min(nextIndex, ROUTE_DATA.length - 1);
+    });
+  }, []);
 
-        return nextIndex;
-      });
-    }, 3000);
+  // Mark stop as arrived
+  const markStopArrived = useCallback((stopIndex: number) => {
+    setArrivedStops(prev => {
+      if (!prev.includes(stopIndex)) {
+        console.log(`✅ Marked stop ${stopIndex} as arrived`);
+        return [...prev, stopIndex];
+      }
+      return prev;
+    });
+  }, []);
 
-    setIntervalId(id);
-  };
-
-  // Simulation Engine - Moves bus through route points
-  const startJourney = () => {
-    setIsLive(true);
+  // Start Journey - GPS ONLY
+  const startJourney = useCallback(() => {
+    console.log('🚀 Starting journey with REAL GPS tracking...');
     setCurrentStopIndex(0);
+    setArrivedStops([]);
     setBusLocation(ROUTE_DATA[0]);
     
-    // Try to get real device location first
-    if (navigator.geolocation) {
-      startRealTimeLocation();
-    } else {
-      // Fallback to simulation
-      startSimulationEngine();
-    }
-  };
+    // Only use real GPS location - no simulation
+    startRealTimeLocation();
+  }, [startRealTimeLocation]);
 
-  const stopJourney = () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-      setIntervalId(null);
-    }
+  const stopJourney = useCallback(() => {
+    console.log('🛑 Stopping journey...');
     if (watchPositionId !== null) {
       stopRealTimeLocation(watchPositionId);
       setWatchPositionId(null);
     }
     setIsLive(false);
-  };
+    setIsUsingRealLocation(false);
+    setLocationError(null);
+  }, [watchPositionId, stopRealTimeLocation]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
       if (watchPositionId !== null) {
         stopRealTimeLocation(watchPositionId);
       }
     };
-  }, [intervalId, watchPositionId]);
+  }, [watchPositionId, stopRealTimeLocation]);
 
   return (
     <BusContext.Provider
@@ -149,7 +194,11 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         startJourney,
         stopJourney,
         setBusLocation,
-        locationError
+        locationError,
+        isUsingRealLocation,
+        moveToNextStop,
+        arrivedStops,
+        markStopArrived,
       }}
     >
       {children}

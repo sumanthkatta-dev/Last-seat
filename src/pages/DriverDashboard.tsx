@@ -1,11 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { useBus } from '../context/useBus';
 import { ROUTE_DATA } from '../context/routeData';
-import { MapPin, LogOut, Map, Radio, MessageCircle, Settings, CheckCircle, ChevronRight } from 'lucide-react';
+import { MapPin, LogOut, Map, Radio, MessageCircle, Settings, CheckCircle, ChevronRight, Navigation } from 'lucide-react';
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
-  const { isLive, currentStopIndex, startJourney, stopJourney, locationError, busLocation } = useBus();
+  const { 
+    isLive, 
+    currentStopIndex, 
+    startJourney, 
+    stopJourney, 
+    locationError, 
+    busLocation, 
+    isUsingRealLocation,
+    moveToNextStop,
+    arrivedStops,
+    markStopArrived 
+  } = useBus();
 
   // Compute student count based on stop index
   const studentsWaiting = isLive ? (currentStopIndex * 7 + 12) % 20 + 8 : 0;
@@ -21,8 +32,21 @@ const DriverDashboard = () => {
   };
 
   const handleMarkArrived = () => {
-    // Simulate moving to next stop
-    console.log('Marked as arrived at', getCurrentStop().name);
+    // Mark current stop as arrived
+    markStopArrived(currentStopIndex);
+    
+    // Show notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Stop Marked', {
+        body: `Arrived at ${getCurrentStop().name}`,
+        icon: '/bus-icon.png'
+      });
+    }
+    
+    // Move to next stop
+    setTimeout(() => {
+      moveToNextStop();
+    }, 1000);
   };
 
   const getCurrentStop = () => {
@@ -57,8 +81,11 @@ const DriverDashboard = () => {
             <div className="flex items-start gap-3">
               <MapPin className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
               <div>
-                <p className="text-blue-700 font-bold text-sm mb-1">Ready to Start Route</p>
-                <p className="text-blue-600 text-xs">Allow location access when prompted to share real-time position with students. The app will work with simulated routes if location is denied.</p>
+                <p className="text-blue-700 font-bold text-sm mb-1">📡 Real GPS Tracking Required</p>
+                <p className="text-blue-600 text-xs">
+                  This app uses ONLY real GPS location. When you start the journey, you'll be prompted to allow location access. 
+                  Make sure GPS is enabled on your device for accurate tracking.
+                </p>
               </div>
             </div>
           </div>
@@ -153,25 +180,34 @@ const DriverDashboard = () => {
           {/* Location Status */}
           <div className={`rounded-2xl p-4 mb-6 border-2 flex items-start gap-3 ${
             locationError 
-              ? 'bg-amber-50 border-amber-200' 
+              ? 'bg-red-50 border-red-300' 
               : 'bg-green-50 border-green-200'
           }`}>
-            <div className={`text-lg mt-1 flex-shrink-0 ${locationError ? 'text-amber-600' : 'text-green-600'}`}>
-              {locationError ? '📍' : '✓'}
+            <div className={`text-lg mt-1 flex-shrink-0 ${locationError ? 'text-red-600' : 'text-green-600'}`}>
+              {locationError ? '❌' : '📡'}
             </div>
             <div className="flex-1">
-              <p className={`font-bold text-sm ${locationError ? 'text-amber-700' : 'text-green-700'}`}>
-                {locationError ? 'Using Simulated Route' : 'Real-Time Location Active'}
+              <p className={`font-bold text-sm ${locationError ? 'text-red-700' : 'text-green-700'}`}>
+                {isUsingRealLocation ? '✅ Real GPS Tracking Active' : '❌ GPS Not Available'}
               </p>
-              <p className={`text-xs leading-relaxed ${locationError ? 'text-amber-600' : 'text-green-600'}`}>
+              <p className={`text-xs leading-relaxed mt-1 ${locationError ? 'text-red-600' : 'text-green-600'}`}>
                 {locationError ? (
                   <>
                     {locationError}
                     <br />
-                    <span className="text-xs font-semibold mt-1 inline-block">(Students will see simulated route movement)</span>
+                    <span className="text-xs font-semibold mt-2 inline-block">
+                      ⚠️ Journey stopped. Please enable location permissions and GPS, then start again.
+                    </span>
                   </>
                 ) : (
-                  `Live: Lat ${busLocation.lat.toFixed(4)}, Lng ${busLocation.lng.toFixed(4)}`
+                  <>
+                    📍 Lat: {busLocation.lat.toFixed(6)}, Lng: {busLocation.lng.toFixed(6)}
+                    <br />
+                    <span className="text-xs font-semibold mt-1 inline-block flex items-center gap-1">
+                      <Navigation className="w-3 h-3" />
+                      Broadcasting real GPS position to students
+                    </span>
+                  </>
                 )}
               </p>
             </div>
@@ -181,15 +217,30 @@ const DriverDashboard = () => {
           <div className="bg-gray-50 rounded-2xl p-6 mb-6 border border-gray-200">
             <p className="text-gray-600 uppercase text-xs font-bold mb-3">Current Target Stop</p>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{getCurrentStop().name}</h2>
-            <p className="text-gray-600 text-sm mb-4">Estimated arrival: 2 mins</p>
+            <p className="text-gray-600 text-sm mb-1">Stop {currentStopIndex + 1} of {ROUTE_DATA.length}</p>
+            <p className="text-gray-500 text-xs mb-4">Scheduled time: {getCurrentStop().time}</p>
             
             {/* Mark Arrived Button */}
             <button
               onClick={handleMarkArrived}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-full transition-all duration-300 flex items-center justify-center gap-2"
+              disabled={arrivedStops.includes(currentStopIndex)}
+              className={`w-full font-bold py-3 rounded-full transition-all duration-300 flex items-center justify-center gap-2 ${
+                arrivedStops.includes(currentStopIndex)
+                  ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
             >
               <CheckCircle className="w-5 h-5" />
-              Mark Arrived
+              {arrivedStops.includes(currentStopIndex) ? 'Marked as Arrived ✓' : 'Mark Arrived'}
+            </button>
+            
+            {/* Stop Journey Button */}
+            <button
+              onClick={stopJourney}
+              className="w-full mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-full transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              End Journey
             </button>
           </div>
 
