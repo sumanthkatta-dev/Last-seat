@@ -99,13 +99,13 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         // Show error and stop journey - NO SIMULATION FALLBACK
         if (error.code === 1) {
-          setLocationError('❌ Location permission denied. Please allow location access to track the bus.');
+          setLocationError('PERMISSION_DENIED: Location access blocked. Click the lock icon (🔒) in your browser address bar and allow location access. Then restart the journey.');
         } else if (error.code === 2) {
-          setLocationError('❌ Unable to get GPS signal. Please ensure GPS is enabled and try again.');
+          setLocationError('POSITION_UNAVAILABLE: Unable to get GPS signal. Make sure GPS is enabled on your device and you have a clear view of the sky.');
         } else if (error.code === 3) {
-          setLocationError('❌ GPS timeout. Please check your GPS signal and try again.');
+          setLocationError('TIMEOUT: GPS took too long to respond. Check your GPS signal strength and try again.');
         } else {
-          setLocationError('❌ GPS unavailable. Real-time tracking requires GPS access.');
+          setLocationError('GPS_ERROR: Location services unavailable. Ensure GPS is enabled in your device settings.');
         }
         
         setIsUsingRealLocation(false);

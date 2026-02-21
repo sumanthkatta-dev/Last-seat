@@ -80,11 +80,24 @@ const DriverDashboard = () => {
           <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-6">
             <div className="flex items-start gap-3">
               <MapPin className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-              <div>
-                <p className="text-blue-700 font-bold text-sm mb-1">📡 Real GPS Tracking Required</p>
-                <p className="text-blue-600 text-xs">
-                  This app uses ONLY real GPS location. When you start the journey, you'll be prompted to allow location access. 
-                  Make sure GPS is enabled on your device for accurate tracking.
+              <div className="flex-1">
+                <p className="text-blue-700 font-bold text-sm mb-2">📡 Real GPS Tracking Required</p>
+                <p className="text-blue-600 text-xs mb-3">
+                  This app uses ONLY real GPS location. When you start the journey, you'll be prompted to allow location access.
+                </p>
+                
+                {/* Chrome Permission Guide */}
+                <div className="bg-blue-100 rounded-lg p-3 mb-2">
+                  <p className="text-xs font-bold text-blue-800 mb-2">📍 Enable Location in Chrome:</p>
+                  <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
+                    <li>Click <strong>\"Allow\"</strong> when Chrome asks for location</li>
+                    <li>Or click the <strong>lock icon (🔒)</strong> in address bar → Location → Allow</li>
+                    <li>Make sure GPS is ON in your device settings</li>
+                  </ol>
+                </div>
+                
+                <p className="text-xs text-blue-600 font-semibold">
+                  ✅ <strong>HTTPS Required:</strong> Location only works on secure connections
                 </p>
               </div>
             </div>
@@ -178,38 +191,65 @@ const DriverDashboard = () => {
         <div className="flex-1 overflow-y-auto p-4">
           
           {/* Location Status */}
-          <div className={`rounded-2xl p-4 mb-6 border-2 flex items-start gap-3 ${
+          <div className={`rounded-2xl p-4 mb-6 border-2 ${
             locationError 
               ? 'bg-red-50 border-red-300' 
               : 'bg-green-50 border-green-200'
           }`}>
-            <div className={`text-lg mt-1 flex-shrink-0 ${locationError ? 'text-red-600' : 'text-green-600'}`}>
-              {locationError ? '❌' : '📡'}
-            </div>
             <div className="flex-1">
-              <p className={`font-bold text-sm ${locationError ? 'text-red-700' : 'text-green-700'}`}>
-                {isUsingRealLocation ? '✅ Real GPS Tracking Active' : '❌ GPS Not Available'}
-              </p>
-              <p className={`text-xs leading-relaxed mt-1 ${locationError ? 'text-red-600' : 'text-green-600'}`}>
-                {locationError ? (
+              <p className={`font-bold text-sm flex items-center gap-2 ${locationError ? 'text-red-700' : 'text-green-700'}`}>
+                {isUsingRealLocation ? (
                   <>
-                    {locationError}
-                    <br />
-                    <span className="text-xs font-semibold mt-2 inline-block">
-                      ⚠️ Journey stopped. Please enable location permissions and GPS, then start again.
-                    </span>
+                    <Navigation className="w-4 h-4" />
+                    Real GPS Tracking Active
                   </>
                 ) : (
                   <>
-                    📍 Lat: {busLocation.lat.toFixed(6)}, Lng: {busLocation.lng.toFixed(6)}
-                    <br />
-                    <span className="text-xs font-semibold mt-1 inline-block flex items-center gap-1">
-                      <Navigation className="w-3 h-3" />
-                      Broadcasting real GPS position to students
-                    </span>
+                    <Navigation className="w-4 h-4" />
+                    GPS Not Available
                   </>
                 )}
               </p>
+              {locationError ? (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-red-700 font-semibold">
+                    {locationError}
+                  </p>
+                  
+                  {/* Chrome Instructions */}
+                  <div className="bg-red-100 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-bold text-red-800">📍 How to Enable Location in Chrome:</p>
+                    <ol className="text-xs text-red-700 space-y-1 ml-4 list-decimal">
+                      <li>Click the <strong>lock icon (🔒)</strong> or <strong>info icon (ⓘ)</strong> in the address bar</li>
+                      <li>Find "Location" and set it to <strong>"Allow"</strong></li>
+                      <li>Refresh this page and click <strong>"Start Journey"</strong> again</li>
+                    </ol>
+                  </div>
+                  
+                  {/* Device Settings */}
+                  <div className="bg-red-100 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-bold text-red-800">📱 Device GPS Settings:</p>
+                    <ul className="text-xs text-red-700 space-y-1 ml-4 list-disc">
+                      <li><strong>Android:</strong> Settings → Location → Turn ON</li>
+                      <li><strong>iOS:</strong> Settings → Privacy → Location Services → ON</li>
+                      <li><strong>Windows:</strong> Settings → Privacy → Location → ON</li>
+                    </ul>
+                  </div>
+                  
+                  <p className="text-xs font-semibold text-red-700 mt-2">
+                    ⚠️ Journey stopped. Enable location and restart the journey.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs leading-relaxed mt-1 text-green-600">
+                  📍 Lat: {busLocation.lat.toFixed(6)}, Lng: {busLocation.lng.toFixed(6)}
+                  <br />
+                  <span className="text-xs font-semibold mt-1 inline-block flex items-center gap-1">
+                    <Navigation className="w-3 h-3" />
+                    Broadcasting real GPS position to students
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
