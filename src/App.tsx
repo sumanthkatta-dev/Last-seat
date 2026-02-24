@@ -5,6 +5,7 @@ import PilotDashboard from './pages/PilotDashboard';
 import NavigatorTracker from './pages/NavigatorTracker';
 import './App.css';
 
+// Version: 2.0.0 - Real-time stop requests, Firebase sync, notifications
 function App() {
   return (
     <BusProvider>
