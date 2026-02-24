@@ -4,10 +4,10 @@ A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with
 
 ## Overview
 
-**Last Seat** is a real-time GPS-synced bus tracking application designed for college students and bus drivers. It uses **Firebase Realtime Database** to sync the driver's GPS location to all students in real-time - no simulation, just real GPS!
+**Last Seat** is a real-time GPS-synced vehicle tracking application designed for fleet operators, pilots, and navigators. It uses **Firebase Realtime Database** to sync the pilot's GPS location to all navigators in real-time - no simulation, just real GPS!
 
-- **Student View**: See driver's real-time GPS location on the map
-- **Driver Dashboard**: Broadcast your GPS location to all students
+- **Navigator View**: See pilot's real-time GPS location on the map
+- **Pilot Dashboard**: Broadcast your GPS location to all navigators
 - **Real-Time Sync**: Firebase ensures instant updates across all devices
 
 ## ⚡ Key Feature: Real-Time GPS Sync
@@ -15,19 +15,19 @@ A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with
 The driver's GPS location is **instantly broadcasted** to all students using Firebase Realtime Database:
 
 ```
-Driver Device (GPS) → Firebase → Student Devices (Map)
+Pilot Device (GPS) → Firebase → Navigator Devices (Map)
      🚌 →              ☁️  →         📱📱📱
 ```
 
-- Driver gets GPS coordinates from their device
+- Pilot gets GPS coordinates from their device
 - Location is written to Firebase in real-time
 - All students receive updates within milliseconds
 - Works across multiple devices simultaneously
 
 ## Features
 
-### Student Interface (`/track`)
-- 🗺️ **Live GPS Tracking**: See driver's real-time GPS location from Firebase
+### Navigator Interface (`/track`)
+- 🗺️ **Live GPS Tracking**: See pilot's real-time GPS location from Firebase
 - 📍 **GPS Path Visualization**: 
   - Red solid line showing actual traveled GPS path
   - Blue dashed line for planned route ahead
@@ -46,7 +46,7 @@ Driver Device (GPS) → Firebase → Student Devices (Map)
 - 🗺️ **Full Map View**: Expanded map with search and zoom controls
 - 🔄 **Real-Time Updates**: Live sync with driver's location via Firebase
 
-### Driver Interface (`/driver`)
+### Pilot Interface (`/pilot`)
 - 📡 **GPS Broadcasting**: Uses real device GPS and syncs to Firebase
 - 🔥 **Firebase Sync**: Writes location to cloud every time GPS updates
 - 🎛️ **One-Touch Control**: Start/stop GPS broadcasting

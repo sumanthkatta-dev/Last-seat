@@ -1,8 +1,15 @@
-import { createContext } from 'react';
+import { ROUTE_TO_COLLEGE } from './routeData';
 
 export interface BusLocation {
   lat: number;
   lng: number;
+}
+
+export interface StopRequest {
+  stopId: number;
+  stopName: string;
+  passengerId: string;
+  timestamp: number;
 }
 
 export interface BusContextType {
@@ -17,8 +24,12 @@ export interface BusContextType {
   moveToNextStop: () => void;
   arrivedStops: number[];
   markStopArrived: (stopIndex: number) => void;
-  role: 'driver' | 'student';
-  setRole: (role: 'driver' | 'student') => void;
+  role: 'pilot' | 'navigator';
+  setRole: (role: 'pilot' | 'navigator') => void;
+  routeDirection: 'to' | 'from';
+  setRouteDirection: (direction: 'to' | 'from') => void;
+  currentRoute: typeof ROUTE_TO_COLLEGE;
+  stopRequests: StopRequest[];
+  requestStop: (stopId: number, stopName: string) => void;
+  clearStopRequest: (stopId: number) => void;
 }
-
-export const BusContext = createContext<BusContextType | undefined>(undefined);

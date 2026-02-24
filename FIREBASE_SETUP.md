@@ -2,7 +2,7 @@
 
 ## 🔥 Quick Setup (5 minutes)
 
-Follow these steps to enable real-time GPS sync between driver and students:
+Follow these steps to enable real-time GPS sync between pilot and navigators:
 
 ### Step 1: Create Firebase Project
 
@@ -71,10 +71,10 @@ VITE_FIREBASE_APP_ID=1:your-app-id:web:your-app-hash
    ```
 
 2. **Open TWO browser windows/devices**:
-   - Window 1: Go to your app → Click "I am a Driver" → PIN: 1234 → Start Journey
-   - Window 2: Go to your app → Click "I am a Student" → View Map
+   - Window 1: Go to your app → Click "I am a Pilot" → PIN: 1234 → Start Journey
+   - Window 2: Go to your app → Click "I am a Navigator" → View Map
 
-3. **You should see**: Student map showing driver's real-time GPS location! 🎉
+3. **You should see**: Navigator map showing pilot's real-time GPS location! 🎉
 
 ## 🌐 Deploy to Vercel
 
@@ -102,8 +102,8 @@ For production, enable Firebase Authentication and update rules:
 ```
 
 This allows:
-- ✅ Anyone can READ bus locations (students don't need login)
-- ✅ Only authenticated users can WRITE (drivers must login)
+- ✅ Anyone can READ vehicle locations (navigators don't need login)
+- ✅ Only authenticated users can WRITE (pilots must login)
 
 ## 📊 Monitor Usage
 
@@ -121,15 +121,15 @@ This allows:
 - Check your Database Rules allow read/write
 - Verify Database URL is correct in `.env`
 
-### Student not seeing driver's location
-- Make sure driver has GPS permission enabled
+### Pilot not starting journey
+- Make sure pilot has GPS permission enabled
 - Check browser console for Firebase connection errors
 - Verify both devices are using the same Firebase project
 - Check Firebase Console → Realtime Database → Data tab to see if location is being written
 
 ## 🎯 What Gets Synced?
 
-When driver starts journey, Firebase stores:
+When pilot starts journey, Firebase stores:
 - GPS coordinates (lat/lng)
 - Current stop index
 - Journey status (live/stopped)

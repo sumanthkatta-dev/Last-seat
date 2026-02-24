@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { BusProvider } from './context';
 import Home from './pages/Home';
-import DriverDashboard from './pages/DriverDashboard';
-import StudentTracker from './pages/StudentTracker';
+import PilotDashboard from './pages/PilotDashboard';
+import NavigatorTracker from './pages/NavigatorTracker';
 import './App.css';
 
 function App() {
@@ -11,8 +11,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/driver" element={<DriverDashboard />} />
-          <Route path="/track" element={<StudentTracker />} />
+          <Route path="/pilot" element={<PilotDashboard />} />
+          <Route path="/track" element={<NavigatorTracker />} />
         </Routes>
       </Router>
     </BusProvider>
