@@ -99,8 +99,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isUsingRealLocation: true,
             timestamp: Date.now(),
             arrivedStops: arrivedStops,
-            routeDirection,
-            stopRequests: stopRequests
+            routeDirection
           }).catch((error: Error) => {
             console.error('❌ Firebase write error:', error);
           });
@@ -135,7 +134,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ) as unknown as number;
 
     setWatchPositionId(id);
-  }, [findNearestStop, role, arrivedStops, routeDirection, journeyStarted, stopRequests]);
+  }, [findNearestStop, role, arrivedStops, routeDirection, journeyStarted]);
 
   const stopRealTimeLocation = useCallback((id: number | null) => {
     if (id !== null) {
@@ -172,24 +171,70 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Request a stop as passenger
   const requestStop = useCallback((stopId: number, stopName: string) => {
-    setStopRequests(prev => {
+    const busRef = ref(database, `buses/${BUS_ID}/stopRequests`);
+    
+    // Read current stop requests from Firebase first
+    onValue(busRef, (snapshot: DataSnapshot) => {
+      const existingRequests = snapshot.val() || [];
+      
       // Check if request already exists for this stop
-      if (prev.find(r => r.stopId === stopId)) {
-        return prev;
+      if (existingRequests.find((r: { stopId: number }) => r.stopId === stopId)) {
+        console.log(`ℹ️ Stop request already exists for ${stopName}`);
+        return;
       }
-      console.log(`🙋 Passenger requested stop: ${stopName}`);
-      return [...prev, {
+      
+      // Add new request
+      const newRequest = {
         stopId,
         stopName,
         passengerId: `passenger-${Date.now()}`,
         timestamp: Date.now()
-      }];
-    });
+      };
+      
+      const updatedRequests = [...existingRequests, newRequest];
+      
+      // Write directly to Firebase so pilot sees it instantly
+      set(ref(database, `buses/${BUS_ID}/stopRequests`), updatedRequests)
+        .then(() => {
+          console.log(`🙋 Passenger requested stop: ${stopName} (synced to Firebase)`);
+          // Update local state
+          setStopRequests(updatedRequests);
+          
+          // Show confirmation notification to passenger
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Stop Request Sent', {
+              body: `Your request for ${stopName} has been sent to the driver`,
+              icon: '/bus-icon.png',
+              tag: `request-${stopId}`
+            });
+          }
+        })
+        .catch((error: Error) => {
+          console.error('❌ Failed to send stop request:', error);
+        });
+    }, { onlyOnce: true }); // Read once and don't maintain subscription
   }, []);
 
   // Clear stop request (when driver reaches or skips stop)
   const clearStopRequest = useCallback((stopId: number) => {
-    setStopRequests(prev => prev.filter(r => r.stopId !== stopId));
+    const busRef = ref(database, `buses/${BUS_ID}/stopRequests`);
+    
+    // Read current requests and filter out the cleared one
+    onValue(busRef, (snapshot: DataSnapshot) => {
+      const existingRequests = snapshot.val() || [];
+      const updatedRequests = existingRequests.filter((r: { stopId: number }) => r.stopId !== stopId);
+      
+      // Write back to Firebase
+      set(ref(database, `buses/${BUS_ID}/stopRequests`), updatedRequests)
+        .then(() => {
+          console.log(`✅ Cleared stop request for stop ${stopId}`);
+          // Update local state
+          setStopRequests(updatedRequests);
+        })
+        .catch((error: Error) => {
+          console.error('❌ Failed to clear stop request:', error);
+        });
+    }, { onlyOnce: true });
   }, []);
 
   // Start Journey - GPS ONLY
@@ -258,9 +303,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (data.routeDirection === 'to' || data.routeDirection === 'from') {
             setRouteDirection(data.routeDirection);
           }
-          if (Array.isArray(data.stopRequests)) {
-            setStopRequests(data.stopRequests);
-          }
+          // stopRequests are handled by separate listener, no need to sync here
           
           setLocationError(null);
         } else {
@@ -282,11 +325,32 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [role, journeyStarted]);
 
+  // 🔥 FIREBASE LISTENER FOR STOP REQUESTS - Works for both pilots and navigators
+  useEffect(() => {
+    console.log('🙋 Setting up real-time listener for stop requests...');
+    
+    const stopRequestsRef = ref(database, `buses/${BUS_ID}/stopRequests`);
+    
+    onValue(stopRequestsRef, (snapshot: DataSnapshot) => {
+      const requests = snapshot.val() || [];
+      console.log(`📩 Stop requests updated from Firebase:`, requests);
+      setStopRequests(requests);
+    }, (error: Error) => {
+      console.error('❌ Firebase stop requests read error:', error);
+    });
+    
+    // Cleanup listener on unmount
+    return () => {
+      console.log('🔌 Unsubscribing from stop requests listener');
+      off(stopRequestsRef);
+    };
+  }, []); // Run once on mount
+
   // Pilot: Update Firebase when journey status changes
   useEffect(() => {
     if (role === 'pilot') {
       if (isLive && journeyStarted) {
-        // Pilot actively journeying - sync location
+        // Pilot actively journeying - sync location (DON'T sync stopRequests here, they're managed separately)
         const busRef = ref(database, `buses/${BUS_ID}`);
         set(busRef, {
           location: busLocation,
@@ -295,8 +359,7 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isUsingRealLocation,
           timestamp: Date.now(),
           arrivedStops,
-          routeDirection,
-          stopRequests
+          routeDirection
         }).catch((error: Error) => {
           console.error('❌ Firebase update error:', error);
         });
@@ -310,14 +373,19 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isUsingRealLocation: false,
           timestamp: Date.now(),
           arrivedStops: [],
-          routeDirection,
-          stopRequests: []
+          routeDirection
         }).catch((error: Error) => {
           console.error('❌ Firebase clear error:', error);
         });
+        
+        // Also clear stop requests when journey ends
+        const stopRequestsRef = ref(database, `buses/${BUS_ID}/stopRequests`);
+        set(stopRequestsRef, []).catch((error: Error) => {
+          console.error('❌ Failed to clear stop requests:', error);
+        });
       }
     }
-  }, [role, isLive, journeyStarted, busLocation, currentStopIndex, isUsingRealLocation, arrivedStops, routeDirection, currentRoute, stopRequests]);
+  }, [role, isLive, journeyStarted, busLocation, currentStopIndex, isUsingRealLocation, arrivedStops, routeDirection, currentRoute]);
 
   return (
     <BusContext.Provider

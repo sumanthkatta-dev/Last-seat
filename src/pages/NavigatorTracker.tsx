@@ -308,8 +308,19 @@ const NavigatorTracker = () => {
                     <Share2 className="w-4 h-4" />
                     Share Status
                   </button>
-                  <button className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 px-3 rounded-lg transition text-sm">
-                    Stop Request
+                  <button 
+                    onClick={() => {
+                      const currentStop = getCurrentStop();
+                      requestStop(currentStop.id, currentStop.name);
+                    }}
+                    disabled={stopRequests.some(r => r.stopId === getCurrentStop().id)}
+                    className={`flex-1 font-semibold py-2 px-3 rounded-lg transition text-sm ${
+                      stopRequests.some(r => r.stopId === getCurrentStop().id)
+                        ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                        : 'bg-red-50 hover:bg-red-100 text-red-600'
+                    }`}
+                  >
+                    {stopRequests.some(r => r.stopId === getCurrentStop().id) ? '✓ Requested' : '🙋 Request Stop'}
                   </button>
                 </div>
               </div>
