@@ -21,7 +21,9 @@ const PilotDashboard = () => {
     setRouteDirection,
     currentRoute,
     stopRequests,
-    clearStopRequest
+    clearStopRequest,
+    autoDetectedStops,
+    distanceToCurrentStop
   } = useBus();
 
 
@@ -185,10 +187,11 @@ const PilotDashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <p className="text-sm font-bold text-gray-900">Route 13 - {routeDirection === 'to' ? 'TO College' : 'FROM College'}</p>
+              <p className="text-xs text-gray-500 mt-0.5">🌍 Automatic GPS Tracking Active</p>
             </div>
             {!locationError && (
-              <div className="inline-block bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">
-                ● Broadcasting
+              <div className="inline-block bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                🟢 Broadcasting
               </div>
             )}
           </div>
@@ -196,6 +199,17 @@ const PilotDashboard = () => {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto flex flex-col">
+          
+          {/* Auto-Tracking Information Banner */}
+          <div className="bg-green-50 border-b border-green-200 px-4 py-3 flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-green-900">🎯 Automatic Stop Detection</p>
+              <p className="text-xs text-green-800 mt-1">Your location is being tracked in real-time. When you arrive at a stop (within 300m), it will be auto-detected. Confirm with the button below.</p>
+            </div>
+          </div>
           
           {/* Map View - Smaller */}
           <div className="h-48 bg-gray-200 relative overflow-hidden">
@@ -264,7 +278,30 @@ const PilotDashboard = () => {
             <div>
               <p className="text-gray-600 text-xs font-bold uppercase mb-2 tracking-wide">Current Stop</p>
               <h2 className="text-2xl font-bold text-gray-900 mb-1">{getCurrentStop().name}</h2>
-              <p className="text-xs text-gray-600 mb-4">Stop {currentStopIndex + 1} / Scheduled {getCurrentStop().time}</p>
+              <p className="text-xs text-gray-600 mb-3">Stop {currentStopIndex + 1} / Scheduled {getCurrentStop().time}</p>
+              
+              {/* Distance & Auto-Detection Status */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-600 font-semibold">Distance to Stop</p>
+                    <p className="text-2xl font-bold text-blue-700 mt-1">{Math.round(distanceToCurrentStop)} <span className="text-lg">m</span></p>
+                  </div>
+                  <div className="text-right">
+                    {autoDetectedStops.has(currentStopIndex) ? (
+                      <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                        🎯 Auto-Detected
+                      </div>
+                    ) : distanceToCurrentStop <= 300 ? (
+                      <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                        ⚠️ Close (300m)
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-xs">Approaching...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
               
               {/* Mark Arrived Button */}
               <button
@@ -272,12 +309,20 @@ const PilotDashboard = () => {
                 disabled={arrivedStops.includes(currentStopIndex)}
                 className={`w-full font-bold py-3 rounded-full transition-all duration-300 flex items-center justify-center gap-2 ${
                   arrivedStops.includes(currentStopIndex)
-                    ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                    ? 'bg-green-100 text-green-700 cursor-default'
+                    : autoDetectedStops.has(currentStopIndex)
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
                 <CheckCircle className="w-5 h-5" />
-                {arrivedStops.includes(currentStopIndex) ? 'Marked as Arrived ✓' : 'Mark as Arrived'}
+                {arrivedStops.includes(currentStopIndex) ? (
+                  <>✓ Stop Confirmed</>
+                ) : autoDetectedStops.has(currentStopIndex) ? (
+                  <>✓ Confirm Arrival</>
+                ) : (
+                  <>Mark as Arrived</>
+                )}
               </button>
             </div>
 

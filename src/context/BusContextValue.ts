@@ -32,4 +32,7 @@ export interface BusContextType {
   stopRequests: StopRequest[];
   requestStop: (stopId: number, stopName: string) => void;
   clearStopRequest: (stopId: number) => void;
+  autoDetectedStops: Set<number>;
+  departedStops: Set<number>;
+  distanceToCurrentStop: number;
 }

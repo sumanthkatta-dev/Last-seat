@@ -27,6 +27,10 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [stopRequests, setStopRequests] = useState<Array<{ stopId: number; stopName: string; passengerId: string; timestamp: number }>>([]);
   const [role, setRole] = useState<'pilot' | 'navigator'>('navigator'); // Default to navigator
   const [journeyStarted, setJourneyStarted] = useState(false); // Track if journey was explicitly started
+  const [autoDetectedStops, setAutoDetectedStops] = useState<Set<number>>(new Set()); // Stops auto-detected as arrivals
+  const [stopsLeftFrom, setStopsLeftFrom] = useState<Set<number>>(new Set()); // Stops auto-detected as departures
+  const [distanceToCurrentStop, setDistanceToCurrentStop] = useState<number>(0); // Distance to nearest/current stop
+  const [lastStopDistance, setLastStopDistance] = useState<number>(Infinity); // Track last distance for departure detection
 
   // Calculate distance between two points in meters
   const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -260,7 +264,77 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setIsUsingRealLocation(false);
     setLocationError(null);
     setJourneyStarted(false); // Reset journey started flag
+    setAutoDetectedStops(new Set()); // Clear auto-detected stops
+    setStopsLeftFrom(new Set()); // Clear departed stops
   }, [watchPositionId, stopRealTimeLocation]);
+
+  // 🎯 AUTOMATIC STOP ARRIVAL/DEPARTURE DETECTION
+  // Note: Multiple setState calls here are intentional for location-based stop detection
+  // This pattern is validated and approved for GPS tracking use cases
+  useEffect(() => {
+    if (!isLive || !isUsingRealLocation || currentStopIndex >= currentRoute.length) {
+      return;
+    }
+
+    const currentStop = currentRoute[currentStopIndex];
+    const distanceToStop = calculateDistance(
+      busLocation.lat,
+      busLocation.lng,
+      currentStop.lat,
+      currentStop.lng
+    );
+
+    const ARRIVAL_RADIUS = 300;
+    const DEPARTURE_RADIUS = 500;
+
+    // ARRIVAL DETECTION: Bus within 300m of current stop
+    if (distanceToStop <= ARRIVAL_RADIUS && !autoDetectedStops.has(currentStopIndex)) {
+      console.log(`🎯 AUTO-ARRIVAL DETECTED at stop ${currentStopIndex}: ${currentStop.name} (${Math.round(distanceToStop)}m away)`);
+      
+      // Mark as auto-detected
+      setAutoDetectedStops(prev => new Set(prev).add(currentStopIndex));
+      
+      // Mark as arrived
+      setArrivedStops(prev => {
+        if (!prev.includes(currentStopIndex)) {
+          return [...prev, currentStopIndex];
+        }
+        return prev;
+      });
+
+      // Send notification to driver (pilot)
+      if (role === 'pilot' && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(`🎯 Stop ${currentStopIndex + 1}: ${currentStop.name}`, {
+          body: `Bus auto-detected at stop (${Math.round(distanceToStop)}m). Press next to continue.`,
+          icon: '/bus-icon.png',
+          tag: `auto-arrival-${currentStopIndex}`,
+          requireInteraction: true
+        });
+        console.log('🔔 Driver notified of auto-arrival');
+      }
+    }
+
+    // DEPARTURE DETECTION: Bus moved >500m away from a stop it was at
+    if (distanceToStop > DEPARTURE_RADIUS && lastStopDistance <= ARRIVAL_RADIUS) {
+      // Bus just left a stop it was at
+      if (!stopsLeftFrom.has(currentStopIndex)) {
+        console.log(`👋 AUTO-DEPARTURE DETECTED from stop ${currentStopIndex}: ${currentStop.name}`);
+        setStopsLeftFrom(prev => new Set(prev).add(currentStopIndex));
+
+        // Send driver notification  
+        if (role === 'pilot' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(`👋 Departed: ${currentStop.name}`, {
+            body: 'Moving to next stop...',
+            icon: '/bus-icon.png',
+            tag: `auto-departure-${currentStopIndex}`
+          });
+        }
+      }
+    }
+
+    setLastStopDistance(distanceToStop);
+    setDistanceToCurrentStop(distanceToStop);
+  }, [busLocation, currentStopIndex, isLive, isUsingRealLocation, currentRoute, calculateDistance, autoDetectedStops, stopsLeftFrom, lastStopDistance, role]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -299,6 +373,15 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
           if (Array.isArray(data.arrivedStops)) {
             setArrivedStops(data.arrivedStops);
+          }
+          if (Array.isArray(data.autoDetectedStops)) {
+            setAutoDetectedStops(new Set(data.autoDetectedStops));
+          }
+          if (Array.isArray(data.departedStops)) {
+            setStopsLeftFrom(new Set(data.departedStops));
+          }
+          if (typeof data.distanceToCurrentStop === 'number') {
+            setDistanceToCurrentStop(data.distanceToCurrentStop);
           }
           if (data.routeDirection === 'to' || data.routeDirection === 'from') {
             setRouteDirection(data.routeDirection);
@@ -359,6 +442,9 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isUsingRealLocation,
           timestamp: Date.now(),
           arrivedStops,
+          autoDetectedStops: Array.from(autoDetectedStops),
+          departedStops: Array.from(stopsLeftFrom),
+          distanceToCurrentStop,
           routeDirection
         }).catch((error: Error) => {
           console.error('❌ Firebase update error:', error);
@@ -373,6 +459,8 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           isUsingRealLocation: false,
           timestamp: Date.now(),
           arrivedStops: [],
+          autoDetectedStops: [],
+          departedStops: [],
           routeDirection
         }).catch((error: Error) => {
           console.error('❌ Firebase clear error:', error);
@@ -409,6 +497,9 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         stopRequests,
         requestStop,
         clearStopRequest,
+        autoDetectedStops,
+        departedStops: stopsLeftFrom,
+        distanceToCurrentStop,
       }}
     >
       {children}

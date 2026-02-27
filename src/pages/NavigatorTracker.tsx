@@ -36,13 +36,15 @@ const MapUpdater = ({ busLocation, isLive, autoFollow }: {
 };
 
 const NavigatorTracker = () => {
-  const { busLocation, isLive, currentStopIndex, isUsingRealLocation, routeDirection, currentRoute, stopRequests, requestStop } = useBus();
+  const { busLocation, isLive, currentStopIndex, isUsingRealLocation, routeDirection, currentRoute, stopRequests, requestStop, autoDetectedStops, departedStops } = useBus();
   const [activeTab, setActiveTab] = useState<'tracker' | 'schedule' | 'profile'>('tracker');
   const [selectedStopId, setSelectedStopId] = useState<number | null>(null);
   const [gpsPath, setGpsPath] = useState<LatLngExpression[]>([]);
   const [showBanner, setShowBanner] = useState(true);
   const gpsPathRef = useRef<LatLngExpression[]>([]);
   const [autoFollowVehicle] = useState(true);
+  const [notifiedArrivals, setNotifiedArrivals] = useState<Set<number>>(new Set());
+  const [notifiedDepartures, setNotifiedDepartures] = useState<Set<number>>(new Set());
   
   // Request notification permission when component loads
   useEffect(() => {
@@ -55,31 +57,64 @@ const NavigatorTracker = () => {
     }
   }, []);
   
-  // Notify passenger when bus reaches their requested stop
+  // 🎯 AUTOMATIC ARRIVAL NOTIFICATIONS - Notify students when bus arrives at their requested stops
   useEffect(() => {
-    const notifiedStops = new Set<number>();
-    
-    return () => {
-      stopRequests.forEach(request => {
-        if (currentStopIndex === request.stopId && !notifiedStops.has(request.stopId)) {
-          notifiedStops.add(request.stopId);
+    if (!isLive || stopRequests.length === 0) return;
+
+    stopRequests.forEach(request => {
+      // Check if bus auto-detected arrival at this stop
+      if (autoDetectedStops.has(request.stopId) && !notifiedArrivals.has(request.stopId)) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification('🎯 Bus Arrived!', {
+            body: `Your bus has arrived at ${request.stopName}. Get ready to board!`,
+            icon: '/bus-icon.png',
+            tag: `arrival-${request.stopId}`,
+            requireInteraction: false,
+            silent: false
+          });
           
-          if ('Notification' in window && Notification.permission === 'granted') {
-            const notification = new Notification('🚌 Bus Arrived!', {
-              body: `Your bus has arrived at ${request.stopName}. Please get ready to board!`,
-              icon: '/bus-icon.png',
-              tag: `arrival-${request.stopId}`,
-              requireInteraction: false
-            });
-            
-            setTimeout(() => {
-              notification.close();
-            }, 8000);
-          }
+          // Auto-close after 10 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 10000);
+          
+          console.log(`✅ Notified student: Bus arrived at ${request.stopName}`);
         }
-      });
-    };
-  }, [currentStopIndex, stopRequests]);
+        
+        // Mark as notified
+        setNotifiedArrivals(prev => new Set(prev).add(request.stopId));
+      }
+    });
+  }, [autoDetectedStops, stopRequests, isLive, notifiedArrivals]);
+
+  // 👋 AUTOMATIC DEPARTURE NOTIFICATIONS - Notify students when bus leaves their stop
+  useEffect(() => {
+    if (!isLive) return;
+
+    stopRequests.forEach(request => {
+      // Check if bus has departed from this stop (after arriving)
+      if (departedStops.has(request.stopId) && !notifiedDepartures.has(request.stopId)) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification('👋 Bus Departed', {
+            body: `The bus has left ${request.stopName}. It's on the way!`,
+            icon: '/bus-icon.png',
+            tag: `departure-${request.stopId}`,
+            requireInteraction: false
+          });
+          
+          // Auto-close after 5 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 5000);
+          
+          console.log(`👋 Notified student: Bus departed from ${request.stopName}`);
+        }
+        
+        // Mark as notified
+        setNotifiedDepartures(prev => new Set(prev).add(request.stopId));
+      }
+    });
+  }, [departedStops, stopRequests, isLive, notifiedDepartures]);
   
   // Update gpsPath state when ref changes
   const updateGpsPath = useCallback((newPath: LatLngExpression[]) => {
