@@ -68,6 +68,16 @@ VITE_FIREBASE_APP_ID=1:your-app-id:web:your-app-hash
 VITE_ADMIN_PASSWORD=your-strong-admin-password
 ```
 
+### Admin Route Builder Access
+
+Once deployed, access the admin route builder at `/admin` on your deployment URL. Example: `https://yourdomain.vercel.app/admin`
+
+The admin interface allows you to:
+- Add/edit/delete bus stops
+- Capture GPS coordinates for each stop using device geolocation
+- Toggle between "Replace" (use only admin stops) or "Add" (admin stops + default stops) modes
+- Changes sync in real-time to pilot and navigator views via Firebase
+
 ### Step 6: Test It!
 
 1. **Restart your dev server**: 
