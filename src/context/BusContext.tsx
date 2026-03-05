@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback, useMemo } from 'react';
 import { ref, set, onValue, off, type DataSnapshot } from 'firebase/database';
 import { database } from '../config/firebase';
-import { ROUTE_TO_COLLEGE, ROUTE_FROM_COLLEGE } from './routeData';
+import { ROUTE_TO_COLLEGE, ROUTE_FROM_COLLEGE, type RouteStop } from './routeData';
 import type { BusContextType, BusLocation } from './BusContextValue';
 
 // Creating context alongside provider is a standard pattern for encapsulation
@@ -10,11 +10,84 @@ export const BusContext = createContext<BusContextType | undefined>(undefined);
 
 const BUS_ID = 'bus-42'; // Unique ID for this bus route
 
+type RouteDirection = 'to' | 'from';
+type AdminRouteMode = 'replace' | 'add';
+
+interface AdminRouteStop {
+  name?: string;
+  location?: {
+    lat?: number;
+    lng?: number;
+  };
+}
+
+interface AdminRouteConfig {
+  mode?: AdminRouteMode;
+  stops?: Record<string, AdminRouteStop> | AdminRouteStop[];
+}
+
+const parseAdminStops = (direction: RouteDirection, rawStops?: Record<string, AdminRouteStop> | AdminRouteStop[]): RouteStop[] => {
+  if (!rawStops) {
+    return [];
+  }
+
+  const entries = Array.isArray(rawStops)
+    ? rawStops.map((stop, index) => [String(index), stop] as const)
+    : Object.entries(rawStops);
+
+  const idBase = direction === 'to' ? 70000 : 80000;
+
+  return entries
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([, stop], index) => {
+      const lat = stop?.location?.lat;
+      const lng = stop?.location?.lng;
+
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        return null;
+      }
+
+      const name = typeof stop?.name === 'string' && stop.name.trim().length > 0
+        ? stop.name.trim()
+        : `Admin Stop ${index + 1}`;
+
+      return {
+        id: idBase + index,
+        name,
+        lat,
+        lng,
+        time: '--:--'
+      } satisfies RouteStop;
+    })
+    .filter((stop): stop is RouteStop => stop !== null);
+};
+
+const resolveRoute = (
+  baseRoute: RouteStop[],
+  direction: RouteDirection,
+  config?: AdminRouteConfig
+): RouteStop[] => {
+  if (!config) {
+    return baseRoute;
+  }
+
+  const mode: AdminRouteMode = config.mode === 'replace' ? 'replace' : 'add';
+  const adminStops = parseAdminStops(direction, config.stops);
+
+  if (adminStops.length === 0) {
+    return baseRoute;
+  }
+
+  return mode === 'replace' ? adminStops : [...baseRoute, ...adminStops];
+};
+
 export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [routeDirection, setRouteDirection] = useState<'to' | 'from'>('to');
+  const [routeDirection, setRouteDirection] = useState<RouteDirection>('to');
+  const [toRoute, setToRoute] = useState<RouteStop[]>(ROUTE_TO_COLLEGE);
+  const [fromRoute, setFromRoute] = useState<RouteStop[]>(ROUTE_FROM_COLLEGE);
   const currentRoute = useMemo(() => 
-    routeDirection === 'to' ? ROUTE_TO_COLLEGE : ROUTE_FROM_COLLEGE,
-    [routeDirection]
+    routeDirection === 'to' ? toRoute : fromRoute,
+    [routeDirection, toRoute, fromRoute]
   );
   
   const [busLocation, setBusLocation] = useState<BusLocation>(ROUTE_TO_COLLEGE[0]);
@@ -31,6 +104,25 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [stopsLeftFrom, setStopsLeftFrom] = useState<Set<number>>(new Set()); // Stops auto-detected as departures
   const [distanceToCurrentStop, setDistanceToCurrentStop] = useState<number>(0); // Distance to nearest/current stop
   const [lastStopDistance, setLastStopDistance] = useState<number>(Infinity); // Track last distance for departure detection
+
+  useEffect(() => {
+    const adminRoutesRef = ref(database, 'adminRoutes');
+
+    onValue(adminRoutesRef, (snapshot: DataSnapshot) => {
+      const data = snapshot.val() as { to?: AdminRouteConfig; from?: AdminRouteConfig } | null;
+
+      setToRoute(resolveRoute(ROUTE_TO_COLLEGE, 'to', data?.to));
+      setFromRoute(resolveRoute(ROUTE_FROM_COLLEGE, 'from', data?.from));
+    }, (error: Error) => {
+      console.error('❌ Failed to load admin routes:', error);
+      setToRoute(ROUTE_TO_COLLEGE);
+      setFromRoute(ROUTE_FROM_COLLEGE);
+    });
+
+    return () => {
+      off(adminRoutesRef);
+    };
+  }, []);
 
   // Calculate distance between two points in meters
   const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -244,9 +336,10 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Start Journey - GPS ONLY
   const startJourney = useCallback(() => {
     console.log(`🚀 Starting journey with REAL GPS tracking... Direction: ${routeDirection === 'to' ? 'TO College' : 'FROM College'}`);
+    const firstStop = currentRoute[0] ?? ROUTE_TO_COLLEGE[0];
     setCurrentStopIndex(0);
     setArrivedStops([]);
-    setBusLocation(currentRoute[0]);
+    setBusLocation({ lat: firstStop.lat, lng: firstStop.lng });
     setJourneyStarted(true); // Mark journey as explicitly started
     setIsLive(true); // Transition to In-Transit view immediately
     
@@ -452,8 +545,9 @@ export const BusProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else if (!isLive || !journeyStarted) {
         // Pilot stopped or not started - clear/reset Firebase data
         const busRef = ref(database, `buses/${BUS_ID}`);
+        const firstStop = currentRoute[0] ?? ROUTE_TO_COLLEGE[0];
         set(busRef, {
-          location: currentRoute[0],
+          location: { lat: firstStop.lat, lng: firstStop.lng },
           currentStopIndex: 0,
           isLive: false,
           isUsingRealLocation: false,

@@ -1,5 +1,13 @@
+export interface RouteStop {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  time: string;
+}
+
 // Route Data for Route 13 - TO College (Morning)
-export const ROUTE_TO_COLLEGE = [
+export const ROUTE_TO_COLLEGE: RouteStop[] = [
   { id: 1301, name: "Dilsuknagar Saibaba Temple", lat: 17.3688, lng: 78.5247, time: "7:15" },
   { id: 1302, name: "TV Tower Malakpet", lat: 17.3756, lng: 78.5080, time: "7:20" },
   { id: 1304, name: "Moosaram Bagh", lat: 17.3780, lng: 78.5000, time: "7:22" },
@@ -10,7 +18,7 @@ export const ROUTE_TO_COLLEGE = [
 ];
 
 // Route Data for Route 13 - RETURN from College (Evening)
-export const ROUTE_FROM_COLLEGE = [
+export const ROUTE_FROM_COLLEGE: RouteStop[] = [
   { id: 9999, name: "CMRGI (College)", lat: 17.5971, lng: 78.4866, time: "16:30" },
   { id: 1308, name: "Padma Rao Nagar", lat: 17.4200, lng: 78.5100, time: "17:40" },
   { id: 1306, name: "Amberpet PS", lat: 17.3950, lng: 78.5150, time: "17:53" },
@@ -22,4 +30,4 @@ export const ROUTE_FROM_COLLEGE = [
 ];
 
 // Default to TO College route
-export const ROUTE_DATA = ROUTE_TO_COLLEGE;
+export const ROUTE_DATA: RouteStop[] = ROUTE_TO_COLLEGE;

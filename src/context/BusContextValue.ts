@@ -1,4 +1,4 @@
-import { ROUTE_TO_COLLEGE } from './routeData';
+import type { RouteStop } from './routeData';
 
 export interface BusLocation {
   lat: number;
@@ -28,7 +28,7 @@ export interface BusContextType {
   setRole: (role: 'pilot' | 'navigator') => void;
   routeDirection: 'to' | 'from';
   setRouteDirection: (direction: 'to' | 'from') => void;
-  currentRoute: typeof ROUTE_TO_COLLEGE;
+  currentRoute: RouteStop[];
   stopRequests: StopRequest[];
   requestStop: (stopId: number, stopName: string) => void;
   clearStopRequest: (stopId: number) => void;

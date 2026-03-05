@@ -39,6 +39,10 @@ Follow these steps to enable real-time GPS sync between pilot and navigators:
     "buses": {
       ".read": true,
       ".write": true
+    },
+    "adminRoutes": {
+      ".read": true,
+      ".write": true
     }
   }
 }
@@ -61,6 +65,7 @@ VITE_FIREBASE_PROJECT_ID=your-project-id
 VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 VITE_FIREBASE_APP_ID=1:your-app-id:web:your-app-hash
+VITE_ADMIN_PASSWORD=your-strong-admin-password
 ```
 
 ### Step 6: Test It!
