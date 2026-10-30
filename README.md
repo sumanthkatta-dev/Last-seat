@@ -253,7 +253,7 @@ Uses the Haversine formula to calculate:
 
 ## Default Credentials
 
-**Driver PIN**: `1234`
+**Driver PIN**
 
 ## Color Palette
 
