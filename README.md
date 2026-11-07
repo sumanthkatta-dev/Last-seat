@@ -1,4 +1,4 @@
-# Last Seat 🚌
+# Last Seat
 
 A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with React, TypeScript, and Leaflet.
 
@@ -10,13 +10,13 @@ A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with
 - **Pilot Dashboard**: Broadcast your GPS location to all navigators
 - **Real-Time Sync**: Firebase ensures instant updates across all devices
 
-## ⚡ Key Feature: Real-Time GPS Sync
+## Key Feature: Real-Time GPS Sync
 
 The driver's GPS location is **instantly broadcasted** to all students using Firebase Realtime Database:
 
 ```
 Pilot Device (GPS) → Firebase → Navigator Devices (Map)
-     🚌 →              ☁️  →         📱📱📱
+      → →
 ```
 
 - Pilot gets GPS coordinates from their device
@@ -27,42 +27,42 @@ Pilot Device (GPS) → Firebase → Navigator Devices (Map)
 ## Features
 
 ### Navigator Interface (`/track`)
-- 🗺️ **Live GPS Tracking**: See pilot's real-time GPS location from Firebase
-- 📍 **GPS Path Visualization**: 
+- **Live GPS Tracking**: See pilot's real-time GPS location from Firebase
+- **GPS Path Visualization**:
   - Red solid line showing actual traveled GPS path
   - Blue dashed line for planned route ahead
-- 🎯 **Auto-Follow Map**: Map follows bus automatically with toggle control
-- 📊 **Stop Indicators**: 
+- **Auto-Follow Map**: Map follows bus automatically with toggle control
+- **Stop Indicators**:
   - Red circles for passed stops
   - Amber for current stop
   - Green for upcoming stops
-- ⏰ **ETA Calculator**: Accurate time based on GPS distance
-- 🔔 **Push Notifications**: Optional alerts when bus approaches your stop
-- 📱 **Three Tab System**:
+- **ETA Calculator**: Accurate time based on GPS distance
+- **Push Notifications**: Optional alerts when bus approaches your stop
+- **Three Tab System**:
   - Tracker: Live map with GPS path
   - Schedule: Route stops with status
   - Alerts: Notification settings (optional)
-- 🎯 **6-Decimal Precision**: GPS coordinates accurate to ~0.1 meters
-- 🗺️ **Full Map View**: Expanded map with search and zoom controls
-- 🔄 **Real-Time Updates**: Live sync with driver's location via Firebase
+- **6-Decimal Precision**: GPS coordinates accurate to ~0.1 meters
+- **Full Map View**: Expanded map with search and zoom controls
+- **Real-Time Updates**: Live sync with driver's location via Firebase
 
 ### Pilot Interface (`/pilot`)
-- 📡 **GPS Broadcasting**: Uses real device GPS and syncs to Firebase
-- 🔥 **Firebase Sync**: Writes location to cloud every time GPS updates
-- 🎛️ **One-Touch Control**: Start/stop GPS broadcasting
-- 📍 **Real-Time Status**: Shows GPS coordinates and accuracy
-- ✅ **Stop Management**: Mark stops as arrived and progress through route
-- 📊 **Live GPS Indicator**: Shows when GPS is active vs inactive
-- 🔄 **High Accuracy Mode**: Forces GPS usage for precise location
-- ⚠️ **Permission Handling**: Clear messages for GPS permission states
-- 🛑 **Manual Stop Control**: Move to next stop with button control
-- ☁️ **Cloud Sync**: All data synced to Firebase for students
+- **GPS Broadcasting**: Uses real device GPS and syncs to Firebase
+- **Firebase Sync**: Writes location to cloud every time GPS updates
+- **One-Touch Control**: Start/stop GPS broadcasting
+- **Real-Time Status**: Shows GPS coordinates and accuracy
+- **Stop Management**: Mark stops as arrived and progress through route
+- **Live GPS Indicator**: Shows when GPS is active vs inactive
+- **High Accuracy Mode**: Forces GPS usage for precise location
+- **Permission Handling**: Clear messages for GPS permission states
+- **Manual Stop Control**: Move to next stop with button control
+- **Cloud Sync**: All data synced to Firebase for students
 
 ### Landing Page (`/`)
-- 🎨 **Role Selection**: Beautiful split-screen design
-- 👨‍🎓 **Student Card**: Direct access to tracking
-- 🚌 **Driver Card**: PIN-protected dashboard access (PIN: 1234)
-- 🎭 **Modern UI**: Glassmorphic design with gradient backgrounds
+- **Role Selection**: Beautiful split-screen design
+- **Student Card**: Direct access to tracking
+- **Driver Card**: PIN-protected dashboard access (PIN: 1234)
+- **Modern UI**: Glassmorphic design with gradient backgrounds
 
 ## Tech Stack
 
@@ -73,7 +73,7 @@ Pilot Device (GPS) → Firebase → Navigator Devices (Map)
 - **Maps**: React-Leaflet & Leaflet
 - **Icons**: Lucide React
 - **State Management**: React Context API
-- **Backend**: Firebase Realtime Database ⭐
+- **Backend**: Firebase Realtime Database
 - **Deployment**: Vercel (with SPA routing)
 
 ## Route Information
@@ -182,18 +182,18 @@ npm run preview
 
 ### Important Notes
 
-✅ **The app is now Vercel-compatible!**
+ **The app is now Vercel-compatible!**
 - `vercel.json` configuration included
 - All routes redirect to `index.html` for client-side routing
 - No more 404 errors on reload or back button
 - Static assets cached for 1 year for performance
 
-🔒 **HTTPS Required for GPS**:
+ **HTTPS Required for GPS**:
 - GPS location requires HTTPS or localhost
 - Vercel provides HTTPS by default
 - Users must grant location permission
 
-📱 **Mobile Considerations**:
+ **Mobile Considerations**:
 - GPS works best on mobile devices
 - Desktop uses network-based location
 - Ensure browser has location permission
@@ -302,8 +302,8 @@ Uses the Haversine formula to calculate:
 
 ## Future Enhancements
 
-- [x] Real GPS integration for actual tracking ✅ **IMPLEMENTED**
-- [x] Push notifications for students ✅ **IMPLEMENTED**
+- [x] Real GPS integration for actual tracking **IMPLEMENTED**
+- [x] Push notifications for students **IMPLEMENTED**
 - [ ] Multiple route support
 - [ ] Historical journey data and analytics
 - [ ] Driver authentication system
@@ -325,10 +325,10 @@ Uses the Haversine formula to calculate:
   - Mobile browsers
 
 ### Best Experience
-- 📱 Mobile device with GPS chip (for driver)
-- 🌐 Strong internet connection
-- 🔋 Sufficient battery (GPS is power-intensive)
-- 📡 Good GPS signal (outdoor works best)
+- Mobile device with GPS chip (for driver)
+- Strong internet connection
+- Sufficient battery (GPS is power-intensive)
+- Good GPS signal (outdoor works best)
 
 ## License
 
@@ -340,5 +340,5 @@ Built as a demonstration of React, TypeScript, and Leaflet integration for real-
 
 ---
 
-**Last Seat** - Never miss your college bus! 🚌
+**Last Seat** - Never miss your college bus!
 # Last update: 2026-02-26 10:07:09
