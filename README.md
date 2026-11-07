@@ -1,344 +1,66 @@
 # Last Seat
 
-A Real-Time GPS College Bus Tracker with **Firebase Realtime Sync** - Built with React, TypeScript, and Leaflet.
+Real-time college bus tracking. The driver's phone broadcasts its GPS position, and every student sees the bus move on a live map with ETAs for their stop.
 
-## Overview
+**Live app:** [lastseat.vercel.app](https://lastseat.vercel.app)
 
-**Last Seat** is a real-time GPS-synced vehicle tracking application designed for fleet operators, pilots, and navigators. It uses **Firebase Realtime Database** to sync the pilot's GPS location to all navigators in real-time - no simulation, just real GPS!
+## Why I built it
 
-- **Navigator View**: See pilot's real-time GPS location on the map
-- **Pilot Dashboard**: Broadcast your GPS location to all navigators
-- **Real-Time Sync**: Firebase ensures instant updates across all devices
-
-## Key Feature: Real-Time GPS Sync
-
-The driver's GPS location is **instantly broadcasted** to all students using Firebase Realtime Database:
-
-```
-Pilot Device (GPS) → Firebase → Navigator Devices (Map)
-      → →
-```
-
-- Pilot gets GPS coordinates from their device
-- Location is written to Firebase in real-time
-- All students receive updates within milliseconds
-- Works across multiple devices simultaneously
+Our college buses run fixed routes, but nobody knows where the bus actually is. Students wait at stops for 20 minutes or miss it by one. Last Seat replaces "is it gone yet?" with a live position and an ETA.
 
 ## Features
 
-### Navigator Interface (`/track`)
-- **Live GPS Tracking**: See pilot's real-time GPS location from Firebase
-- **GPS Path Visualization**:
-  - Red solid line showing actual traveled GPS path
-  - Blue dashed line for planned route ahead
-- **Auto-Follow Map**: Map follows bus automatically with toggle control
-- **Stop Indicators**:
-  - Red circles for passed stops
-  - Amber for current stop
-  - Green for upcoming stops
-- **ETA Calculator**: Accurate time based on GPS distance
-- **Push Notifications**: Optional alerts when bus approaches your stop
-- **Three Tab System**:
-  - Tracker: Live map with GPS path
-  - Schedule: Route stops with status
-  - Alerts: Notification settings (optional)
-- **6-Decimal Precision**: GPS coordinates accurate to ~0.1 meters
-- **Full Map View**: Expanded map with search and zoom controls
-- **Real-Time Updates**: Live sync with driver's location via Firebase
+**Student view (`/track`)**
+- Live bus position on a Leaflet map, synced from the driver's device
+- Travelled path drawn in solid red, the route ahead dashed
+- Stop list with passed, current and upcoming states, plus a distance-based ETA for each stop
+- Optional browser notification when the bus is approaching your stop
+- Request a stop: the request syncs to the driver's screen in real time
 
-### Pilot Interface (`/pilot`)
-- **GPS Broadcasting**: Uses real device GPS and syncs to Firebase
-- **Firebase Sync**: Writes location to cloud every time GPS updates
-- **One-Touch Control**: Start/stop GPS broadcasting
-- **Real-Time Status**: Shows GPS coordinates and accuracy
-- **Stop Management**: Mark stops as arrived and progress through route
-- **Live GPS Indicator**: Shows when GPS is active vs inactive
-- **High Accuracy Mode**: Forces GPS usage for precise location
-- **Permission Handling**: Clear messages for GPS permission states
-- **Manual Stop Control**: Move to next stop with button control
-- **Cloud Sync**: All data synced to Firebase for students
+**Driver view (`/pilot`)**
+- One tap to start or stop broadcasting high-accuracy GPS
+- Shows current coordinates, accuracy and connection state
+- Automatic stop detection as the bus reaches each stop, with a manual override
 
-### Landing Page (`/`)
-- **Role Selection**: Beautiful split-screen design
-- **Student Card**: Direct access to tracking
-- **Driver Card**: PIN-protected dashboard access (PIN: 1234)
-- **Modern UI**: Glassmorphic design with gradient backgrounds
+**Admin (`/admin`)**
+- Route builder that records stops from real GPS positions and syncs them to Firebase
 
-## Tech Stack
+## How it works
 
-- **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite 7
-- **Routing**: React Router Dom
-- **Styling**: Tailwind CSS v4
-- **Maps**: React-Leaflet & Leaflet
-- **Icons**: Lucide React
-- **State Management**: React Context API
-- **Backend**: Firebase Realtime Database
-- **Deployment**: Vercel (with SPA routing)
+```
+Driver phone ──watchPosition()──▶ Firebase Realtime Database ──onValue()──▶ Student phones (map + ETA)
+```
 
-## Route Information
+The driver dashboard writes each GPS update to `buses/<busId>` in Firebase Realtime Database. Student clients subscribe to that node and re-render the map as soon as a new position arrives, with no polling. Route and stop data live in `src/context/routeData.ts` and are shared through React Context.
 
-**Route 13**: Dilsuknagar to CMRGI College
+## Tech stack
 
-| Stop ID | Location | Time |
-|---------|----------|------|
-| 1301 | Dilsuknagar Saibaba Temple | 7:15 |
-| 1302 | TV Tower Malakpet | 7:20 |
-| 1304 | Moosaram Bagh | 7:22 |
-| 1305 | Ali Cafe | 7:25 |
-| 1306 | Amberpet PS | 7:27 |
-| 1308 | Padma Rao Nagar | 7:40 |
-| 9999 | CMRGI (College) | 8:50 |
+React 19 · TypeScript · Vite · Tailwind CSS · React-Leaflet · Firebase Realtime Database · React Router · Vercel
 
-## Installation
-
-### Prerequisites
-
-1. **Node.js** (v18 or higher)
-2. **Firebase Account** - Get one free at [firebase.google.com](https://firebase.google.com)
-
-### Step 1: Clone and Install
+## Running locally
 
 ```bash
-# Install dependencies
+git clone https://github.com/sumanthkatta-dev/Last-seat.git
+cd Last-seat
 npm install
-```
-
-### Step 2: Firebase Setup (Required!)
-
-**The app requires Firebase to sync driver and student locations.**
-
-See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions, or follow these quick steps:
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project
-3. Enable **Realtime Database**
-4. Set database rules:
-   ```json
-   {
-     "rules": {
-       "buses": {
-         ".read": true,
-         ".write": true
-       }
-     }
-   }
-   ```
-5. Copy your Firebase config
-6. Create `.env` file:
-   ```env
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   VITE_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-   VITE_FIREBASE_APP_ID=your-app-id
-   ```
-
-### Step 3: Run the App
-
-```bash
-# Start development server
+cp .env.example .env    # add your Firebase web config
 npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
 ```
 
-## Deployment to Vercel
+You'll need a Firebase project with Realtime Database enabled. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for step-by-step setup and [TESTING.md](TESTING.md) for testing the sync with two devices.
 
-### Quick Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/sumanthkatta-dev/Last-seat)
-
-### Manual Deployment
-
-1. **Push your code to GitHub** (already done)
-
-2. **Connect to Vercel**:
-   - Go to [vercel.com](https://vercel.com)
-   - Import your GitHub repository
-   - Vercel will auto-detect Vite settings
-
-3. **The `vercel.json` file handles**:
-   - SPA routing (fixes 404 on reload/back button)
-   - Redirects all routes to `index.html`
-   - Static asset caching
-
-4. **Build Settings** (Auto-detected):
-   - Framework Preset: `Vite`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-   - Install Command: `npm install`
-
-5. **Deploy**:
-   - Click "Deploy"
-   - Vercel will build and deploy automatically
-   - Every push to `main` branch auto-deploys
-
-### Important Notes
-
- **The app is now Vercel-compatible!**
-- `vercel.json` configuration included
-- All routes redirect to `index.html` for client-side routing
-- No more 404 errors on reload or back button
-- Static assets cached for 1 year for performance
-
- **HTTPS Required for GPS**:
-- GPS location requires HTTPS or localhost
-- Vercel provides HTTPS by default
-- Users must grant location permission
-
- **Mobile Considerations**:
-- GPS works best on mobile devices
-- Desktop uses network-based location
-- Ensure browser has location permission
-
-## Project Structure
+## Project structure
 
 ```
-last-seat/
-├── src/
-│   ├── context/
-│   │   └── BusContext.tsx      # Global state management
-│   ├── pages/
-│   │   ├── Home.tsx            # Landing page with role selection
-│   │   ├── DriverDashboard.tsx # Driver control panel
-│   │   └── StudentTracker.tsx  # Student map view
-│   ├── App.tsx                 # Main app with routing
-│   ├── main.tsx               # Entry point
-│   └── index.css              # Global styles + Tailwind
-├── tailwind.config.js         # Tailwind configuration
-├── postcss.config.js          # PostCSS configuration
-└── vite.config.ts             # Vite configuration
+src/pages/        Home, NavigatorTracker (students), PilotDashboard (driver), AdminPage, CalibratePage
+src/context/      Bus state, route data and the Firebase subscription
+src/config/       Firebase initialisation
+src/utils/        Browser notifications
 ```
 
-## How It Works
+## Known limitations
 
-### GPS Location Tracking
-The app uses the browser's Geolocation API with high accuracy mode:
-- **Driver Side**: Requests GPS permission and continuously tracks location
-- **Student Side**: Receives real-time GPS coordinates from driver
-- **Path Tracking**: Records GPS points every ~10 meters to show traveled route
-- **Nearest Stop Detection**: Calculates which stop the bus is closest to
-- **Permission Handling**: Falls back with clear error messages if GPS unavailable
+- **Demo security:** the database rules allow public read and write, and the driver screen uses a simple PIN. A production version would put drivers behind Firebase Authentication and lock writes to authenticated drivers.
+- Supports one route (Route 13) for now. Multi-route support is next.
 
-### State Management
-The app uses React Context (`BusContext`) to manage:
-- Real GPS location (lat/lng coordinates with 6-decimal precision)
-- Live status (GPS broadcasting on/off)
-- Current stop index (calculated from GPS position)
-- Arrived stops tracking
-- GPS path history for route visualization
-
-### GPS Path Visualization
-When the driver starts the journey:
-1. Requests device GPS permission with high accuracy mode
-2. Continuously updates location using `watchPosition()`
-3. Records GPS points to create traveled path
-4. Student map shows red line of actual GPS path
-5. Map auto-follows bus with smooth panning
-6. Updates nearest stop based on GPS proximity
-
-### Distance Calculations
-Uses the Haversine formula to calculate:
-- Distance from bus to each stop (nearest stop detection)
-- Distance to next stop (ETA calculation)
-- Assumes average speed of 30 km/h for ETA
-- Filters path points to avoid duplicates (~10m threshold)
-
-## Default Credentials
-
-**Driver PIN**
-
-## Color Palette
-
-- **Primary**: Emerald-500 (`#10b981`)
-- **Dark**: Slate-900 (`#0f172a`)
-- **Accent**: Blue-500 (Driver card)
-
-## Browser Support
-
-- Modern browsers with ES6+ support
-- Works best on Chrome, Firefox, Safari, Edge
-- Mobile responsive design
-
-## Development Notes
-
-### Key Components
-
-**BusContext.tsx**
-- Manages global bus state
-- Implements journey simulation
-- Exports `useBus()` hook and `ROUTE_DATA` constant
-
-**Home.tsx**
-- Role selection interface
-- PIN verification modal
-- Navigation to appropriate dashboard
-
-**DriverDashboard.tsx**
-- Broadcast control toggle
-- Distance validation to start point
-- Progress tracking with visual indicators
-
-**StudentTracker.tsx**
-- Full-screen Leaflet map
-- Custom bus marker with smooth transitions
-- Route polylines (passed vs upcoming)
-- Stop circles with status colors
-- ETA calculator and bottom info card
-
-### CSS Features
-- Tailwind CSS v4 with PostCSS
-- Custom bus marker transitions
-- Glassmorphic cards with backdrop blur
-- Responsive grid layouts
-- Gradient backgrounds
-
-## Future Enhancements
-
-- [x] Real GPS integration for actual tracking **IMPLEMENTED**
-- [x] Push notifications for students **IMPLEMENTED**
-- [ ] Multiple route support
-- [ ] Historical journey data and analytics
-- [ ] Driver authentication system
-- [ ] Enhanced offline PWA capabilities
-- [ ] Multi-language support
-- [ ] Student attendance tracking
-- [ ] Real-time chat between driver and students
-- [ ] Weather-based ETA adjustments
-
-## Browser & Device Requirements
-
-### GPS Location Requirements
-- **HTTPS**: GPS requires secure connection (Vercel provides this)
-- **Location Permission**: User must grant browser location access
-- **Supported Browsers**:
-  - Chrome/Edge (recommended for GPS accuracy)
-  - Firefox
-  - Safari (iOS/macOS)
-  - Mobile browsers
-
-### Best Experience
-- Mobile device with GPS chip (for driver)
-- Strong internet connection
-- Sufficient battery (GPS is power-intensive)
-- Good GPS signal (outdoor works best)
-
-## License
-
-MIT License - Feel free to use this project for educational purposes.
-
-## Author
-
-Built as a demonstration of React, TypeScript, and Leaflet integration for real-time location tracking.
-
----
-
-**Last Seat** - Never miss your college bus!
-# Last update: 2026-02-26 10:07:09
+More detail on the tracking logic is in [TRACKING_IMPLEMENTATION.md](TRACKING_IMPLEMENTATION.md).
